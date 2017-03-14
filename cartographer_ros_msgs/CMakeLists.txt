@@ -12,39 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 
 project(cartographer_ros_msgs)
 
-set(PACKAGE_DEPENDENCIES
-  geometry_msgs
+if(NOT WIN32)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra")
+endif()
+
+find_package(ament_cmake REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/SensorTopics.msg"
+  "msg/SubmapEntry.msg"
+  "msg/SubmapList.msg"
+  "msg/TrajectoryOptions.msg"
+  "msg/TrajectorySubmapList.msg"
+  "srv/FinishTrajectory.srv"
+  "srv/StartTrajectory.srv"
+  "srv/SubmapQuery.srv"
+  "srv/WriteAssets.srv"
+  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs
+  ADD_LINTER_TESTS
 )
 
-find_package(catkin REQUIRED COMPONENTS message_generation ${PACKAGE_DEPENDENCIES})
+ament_export_dependencies(rosidl_default_runtime)
 
-add_message_files(
-  FILES
-    SubmapList.msg
-    TrajectorySubmapList.msg
-    SubmapEntry.msg
-    SensorTopics.msg
-    TrajectoryOptions.msg
-)
-
-add_service_files(
-  FILES
-    SubmapQuery.srv
-    FinishTrajectory.srv
-    StartTrajectory.srv
-    WriteAssets.srv
-)
-
-generate_messages(
-  DEPENDENCIES
-    geometry_msgs
-)
-
-catkin_package(
-  CATKIN_DEPENDS
-    ${PACKAGE_DEPENDENCIES}
-)
+ament_package()
