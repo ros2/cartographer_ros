@@ -51,9 +51,17 @@ std::unique_ptr<::cartographer::transform::Rigid3d> TfBridge::LookupToTracking(
       timeout = tf2::Duration(0.0);
     }
 
+    // TODO(clalancette): We are currently having some problems where the
+    // conversions from tf2 time to cartographer time is rounding.  In turn
+    // this causes tf2 to complain about extrapolating into the future.  For
+    // right now, just always ask for the data "now", which works around the
+    // problem.  We'll need to address this for real in the future.
+    //return ::cartographer::common::make_unique<
+    //    ::cartographer::transform::Rigid3d>(ToRigid3d(buffer_->lookupTransform(
+    //    tracking_frame_, frame_id, recovered, timeout)));
     return ::cartographer::common::make_unique<
         ::cartographer::transform::Rigid3d>(ToRigid3d(buffer_->lookupTransform(
-        tracking_frame_, frame_id, recovered, timeout)));
+        tracking_frame_, frame_id, tf2::TimePointZero, timeout)));
   } catch (const tf2::TransformException& ex) {
     LOG(WARNING) << ex.what();
   }
