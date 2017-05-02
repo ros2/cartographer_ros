@@ -47,7 +47,6 @@ pkg_search_module(YAMLCPP REQUIRED yaml-cpp>=0.5.1)
 find_package(LuaGoogle REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common io)
 find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system iostreams)
 
 find_package(urdfdom_headers REQUIRED)
 if(DEFINED urdfdom_headers_VERSION)

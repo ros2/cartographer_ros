@@ -63,7 +63,7 @@ Eigen::Vector3d ToEigen(const geometry_msgs::Vector3& vector3);
 Eigen::Quaterniond ToEigen(const geometry_msgs::Quaternion& quaternion);
 
 ::cartographer::kalman_filter::PoseCovariance ToPoseCovariance(
-    const boost::array<double, 36>& covariance);
+    const std::array<double, 36>& covariance);
 
 }  // namespace cartographer_ros
 

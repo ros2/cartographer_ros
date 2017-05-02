@@ -207,7 +207,7 @@ Eigen::Quaterniond ToEigen(const geometry_msgs::Quaternion& quaternion) {
                             quaternion.z);
 }
 
-PoseCovariance ToPoseCovariance(const boost::array<double, 36>& covariance) {
+PoseCovariance ToPoseCovariance(const std::array<double, 36>& covariance) {
   return Eigen::Map<const Eigen::Matrix<double, 6, 6>>(covariance.data());
 }
 
