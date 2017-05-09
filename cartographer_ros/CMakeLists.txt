@@ -34,7 +34,6 @@ pkg_search_module(YAMLCPP REQUIRED yaml-cpp>=0.5.1)
 find_package(cartographer REQUIRED)
 include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
 google_initialize_cartographer_project()
-google_enable_testing()
 
 find_package(console_bridge REQUIRED)
 find_package(Eigen3 REQUIRED)
