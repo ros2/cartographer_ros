@@ -27,7 +27,8 @@
 #include "cartographer/mapping_2d/proto/range_data_inserter_options.pb.h"
 #include "cartographer_ros/map_writer.h"
 #include "cartographer_ros/occupancy_grid.h"
-#include "nav_msgs/OccupancyGrid.h"
+
+#include <nav_msgs/msg/occupancy_grid.hpp>
 
 namespace cartographer_ros {
 
@@ -68,7 +69,7 @@ void Write2DAssets(
     const std::string& stem) {
   WriteTrajectory(trajectory_nodes, stem);
 
-  ::nav_msgs::OccupancyGrid occupancy_grid;
+  ::nav_msgs::msg::OccupancyGrid occupancy_grid;
   BuildOccupancyGrid2D(trajectory_nodes, map_frame, submaps_options,
                        &occupancy_grid);
   WriteOccupancyGridToPgmAndYaml(occupancy_grid, stem);

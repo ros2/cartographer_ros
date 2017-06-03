@@ -45,7 +45,7 @@ SensorBridge::SensorBridge(
       trajectory_builder_(trajectory_builder) {}
 
 void SensorBridge::HandleOdometryMessage(
-    const string& sensor_id, const nav_msgs::Odometry::ConstPtr& msg) {
+    const string& sensor_id, const nav_msgs::msg::Odometry::ConstSharedPtr& msg) {
   const carto::common::Time time = FromRos(msg->header.stamp);
   const auto sensor_to_tracking = tf_bridge_.LookupToTracking(
       time, CheckNoLeadingSlash(msg->child_frame_id));
@@ -57,7 +57,7 @@ void SensorBridge::HandleOdometryMessage(
 }
 
 void SensorBridge::HandleImuMessage(const string& sensor_id,
-                                    const sensor_msgs::Imu::ConstPtr& msg) {
+                                    const sensor_msgs::msg::Imu::ConstSharedPtr& msg) {
   CHECK_NE(msg->linear_acceleration_covariance[0], -1)
       << "Your IMU data claims to not contain linear acceleration measurements "
          "by setting linear_acceleration_covariance[0] to -1. Cartographer "
@@ -85,20 +85,20 @@ void SensorBridge::HandleImuMessage(const string& sensor_id,
 }
 
 void SensorBridge::HandleLaserScanMessage(
-    const string& sensor_id, const sensor_msgs::LaserScan::ConstPtr& msg) {
+    const string& sensor_id, const sensor_msgs::msg::LaserScan::ConstSharedPtr& msg) {
   HandleRangefinder(sensor_id, FromRos(msg->header.stamp), msg->header.frame_id,
                     ToPointCloudWithIntensities(*msg).points);
 }
 
 void SensorBridge::HandleMultiEchoLaserScanMessage(
     const string& sensor_id,
-    const sensor_msgs::MultiEchoLaserScan::ConstPtr& msg) {
+    const sensor_msgs::msg::MultiEchoLaserScan::ConstSharedPtr& msg) {
   HandleRangefinder(sensor_id, FromRos(msg->header.stamp), msg->header.frame_id,
                     ToPointCloudWithIntensities(*msg).points);
 }
 
 void SensorBridge::HandlePointCloud2Message(
-    const string& sensor_id, const sensor_msgs::PointCloud2::ConstPtr& msg) {
+    const string& sensor_id, const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg) {
   pcl::PointCloud<pcl::PointXYZ> pcl_point_cloud;
   pcl::fromROSMsg(*msg, pcl_point_cloud);
   carto::sensor::PointCloud point_cloud;

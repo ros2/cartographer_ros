@@ -25,7 +25,7 @@ namespace cartographer_ros {
 
 namespace {
 
-void WriteOccupancyGridToPgm(const ::nav_msgs::OccupancyGrid& grid,
+void WriteOccupancyGridToPgm(const ::nav_msgs::msg::OccupancyGrid& grid,
                              const std::string& filename) {
   LOG(INFO) << "Saving map to '" << filename << "'...";
   std::ofstream pgm_file(filename, std::ios::out | std::ios::binary);
@@ -50,7 +50,7 @@ void WriteOccupancyGridToPgm(const ::nav_msgs::OccupancyGrid& grid,
   CHECK(pgm_file) << "Writing '" << filename << "' failed.";
 }
 
-void WriteOccupancyGridInfoToYaml(const ::nav_msgs::OccupancyGrid& grid,
+void WriteOccupancyGridInfoToYaml(const ::nav_msgs::msg::OccupancyGrid& grid,
                                   const std::string& map_filename,
                                   const std::string& yaml_filename) {
   LOG(INFO) << "Saving map info to '" << yaml_filename << "'...";
@@ -80,7 +80,7 @@ void WriteOccupancyGridInfoToYaml(const ::nav_msgs::OccupancyGrid& grid,
 }  // namespace
 
 void WriteOccupancyGridToPgmAndYaml(
-    const ::nav_msgs::OccupancyGrid& occupancy_grid, const std::string& stem) {
+    const ::nav_msgs::msg::OccupancyGrid& occupancy_grid, const std::string& stem) {
   const std::string pgm_filename = stem + ".pgm";
   WriteOccupancyGridToPgm(occupancy_grid, pgm_filename);
   WriteOccupancyGridInfoToYaml(occupancy_grid, pgm_filename, stem + ".yaml");

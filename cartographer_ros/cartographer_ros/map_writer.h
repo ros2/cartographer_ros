@@ -19,13 +19,13 @@
 
 #include <string>
 
-#include "nav_msgs/OccupancyGrid.h"
+#include <nav_msgs/msg/occupancy_grid.hpp>
 
 namespace cartographer_ros {
 
 // Writes the given 'occupancy_grid' as 'stem'.pgm and 'stem'.yaml.
 void WriteOccupancyGridToPgmAndYaml(
-    const ::nav_msgs::OccupancyGrid& occupancy_grid, const std::string& stem);
+    const ::nav_msgs::msg::OccupancyGrid& occupancy_grid, const std::string& stem);
 
 }  // namespace cartographer_ros
 

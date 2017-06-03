@@ -21,18 +21,18 @@
 #include "cartographer/transform/proto/transform.pb.h"
 #include "cartographer/transform/transform.h"
 #include "cartographer_ros/time_conversion.h"
-#include "geometry_msgs/Pose.h"
-#include "geometry_msgs/Quaternion.h"
-#include "geometry_msgs/Transform.h"
-#include "geometry_msgs/TransformStamped.h"
-#include "geometry_msgs/Vector3.h"
+
 #include "glog/logging.h"
-#include "ros/ros.h"
-#include "ros/serialization.h"
-#include "sensor_msgs/Imu.h"
-#include "sensor_msgs/LaserScan.h"
-#include "sensor_msgs/MultiEchoLaserScan.h"
-#include "sensor_msgs/PointCloud2.h"
+
+#include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/quaternion.hpp>
+#include <geometry_msgs/msg/transform.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <geometry_msgs/msg/vector3.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/laser_scan.hpp>
+#include <sensor_msgs/msg/multi_echo_laser_scan.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 namespace cartographer_ros {
 
@@ -47,10 +47,10 @@ using ::cartographer::transform::Rigid3d;
 using ::cartographer::kalman_filter::PoseCovariance;
 using ::cartographer::sensor::PointCloudWithIntensities;
 
-sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64 timestamp,
+sensor_msgs::msg::PointCloud2 PreparePointCloud2Message(const int64 timestamp,
                                                    const string& frame_id,
                                                    const int num_points) {
-  sensor_msgs::PointCloud2 msg;
+  sensor_msgs::msg::PointCloud2 msg;
   msg.header.stamp = ToRos(::cartographer::common::FromUniversal(timestamp));
   msg.header.frame_id = frame_id;
   msg.height = 1;
@@ -58,15 +58,15 @@ sensor_msgs::PointCloud2 PreparePointCloud2Message(const int64 timestamp,
   msg.fields.resize(3);
   msg.fields[0].name = "x";
   msg.fields[0].offset = 0;
-  msg.fields[0].datatype = sensor_msgs::PointField::FLOAT32;
+  msg.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
   msg.fields[0].count = 1;
   msg.fields[1].name = "y";
   msg.fields[1].offset = 4;
-  msg.fields[1].datatype = sensor_msgs::PointField::FLOAT32;
+  msg.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
   msg.fields[1].count = 1;
   msg.fields[2].name = "z";
   msg.fields[2].offset = 8;
-  msg.fields[2].datatype = sensor_msgs::PointField::FLOAT32;
+  msg.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
   msg.fields[2].count = 1;
   msg.is_bigendian = false;
   msg.point_step = 16;
@@ -82,11 +82,11 @@ bool HasEcho(float) { return true; }
 float GetFirstEcho(float range) { return range; }
 
 // For sensor_msgs::MultiEchoLaserScan.
-bool HasEcho(const sensor_msgs::LaserEcho& echo) {
+bool HasEcho(const sensor_msgs::msg::LaserEcho& echo) {
   return !echo.echoes.empty();
 }
 
-float GetFirstEcho(const sensor_msgs::LaserEcho& echo) {
+float GetFirstEcho(const sensor_msgs::msg::LaserEcho& echo) {
   return echo.echoes[0];
 }
 
@@ -126,7 +126,7 @@ PointCloudWithIntensities LaserScanToPointCloudWithIntensities(
   return point_cloud;
 }
 
-bool PointCloud2HasField(const sensor_msgs::PointCloud2& pc2,
+bool PointCloud2HasField(const sensor_msgs::msg::PointCloud2& pc2,
                          const std::string& field_name) {
   for (const auto& field : pc2.fields) {
     if (field.name == field_name) {
@@ -138,32 +138,35 @@ bool PointCloud2HasField(const sensor_msgs::PointCloud2& pc2,
 
 }  // namespace
 
-sensor_msgs::PointCloud2 ToPointCloud2Message(
+sensor_msgs::msg::PointCloud2 ToPointCloud2Message(
     const int64 timestamp, const string& frame_id,
     const ::cartographer::sensor::PointCloud& point_cloud) {
   auto msg = PreparePointCloud2Message(timestamp, frame_id, point_cloud.size());
-  ::ros::serialization::OStream stream(msg.data.data(), msg.data.size());
+
+  size_t offset = 0;
+  float * const data = reinterpret_cast<float*>(&msg.data[0]);
   for (const auto& point : point_cloud) {
-    stream.next(point.x());
-    stream.next(point.y());
-    stream.next(point.z());
-    stream.next(kPointCloudComponentFourMagic);
+    data[offset++] = point.x();
+    data[offset++] = point.y();
+    data[offset++] = point.z();
+    data[offset++] = kPointCloudComponentFourMagic;
   }
+
   return msg;
 }
 
 PointCloudWithIntensities ToPointCloudWithIntensities(
-    const sensor_msgs::LaserScan& msg) {
+    const sensor_msgs::msg::LaserScan& msg) {
   return LaserScanToPointCloudWithIntensities(msg);
 }
 
 PointCloudWithIntensities ToPointCloudWithIntensities(
-    const sensor_msgs::MultiEchoLaserScan& msg) {
+    const sensor_msgs::msg::MultiEchoLaserScan& msg) {
   return LaserScanToPointCloudWithIntensities(msg);
 }
 
 PointCloudWithIntensities ToPointCloudWithIntensities(
-    const sensor_msgs::PointCloud2& message) {
+    const sensor_msgs::msg::PointCloud2& message) {
   PointCloudWithIntensities point_cloud;
   // We check for intensity field here to avoid run-time warnings if we pass in
   // a PointCloud2 without intensity.
@@ -188,21 +191,21 @@ PointCloudWithIntensities ToPointCloudWithIntensities(
   return point_cloud;
 }
 
-Rigid3d ToRigid3d(const geometry_msgs::TransformStamped& transform) {
+Rigid3d ToRigid3d(const geometry_msgs::msg::TransformStamped& transform) {
   return Rigid3d(ToEigen(transform.transform.translation),
                  ToEigen(transform.transform.rotation));
 }
 
-Rigid3d ToRigid3d(const geometry_msgs::Pose& pose) {
+Rigid3d ToRigid3d(const geometry_msgs::msg::Pose& pose) {
   return Rigid3d({pose.position.x, pose.position.y, pose.position.z},
                  ToEigen(pose.orientation));
 }
 
-Eigen::Vector3d ToEigen(const geometry_msgs::Vector3& vector3) {
+Eigen::Vector3d ToEigen(const geometry_msgs::msg::Vector3& vector3) {
   return Eigen::Vector3d(vector3.x, vector3.y, vector3.z);
 }
 
-Eigen::Quaterniond ToEigen(const geometry_msgs::Quaternion& quaternion) {
+Eigen::Quaterniond ToEigen(const geometry_msgs::msg::Quaternion& quaternion) {
   return Eigen::Quaterniond(quaternion.w, quaternion.x, quaternion.y,
                             quaternion.z);
 }
@@ -211,8 +214,8 @@ PoseCovariance ToPoseCovariance(const std::array<double, 36>& covariance) {
   return Eigen::Map<const Eigen::Matrix<double, 6, 6>>(covariance.data());
 }
 
-geometry_msgs::Transform ToGeometryMsgTransform(const Rigid3d& rigid3d) {
-  geometry_msgs::Transform transform;
+geometry_msgs::msg::Transform ToGeometryMsgTransform(const Rigid3d& rigid3d) {
+  geometry_msgs::msg::Transform transform;
   transform.translation.x = rigid3d.translation().x();
   transform.translation.y = rigid3d.translation().y();
   transform.translation.z = rigid3d.translation().z();
@@ -223,8 +226,8 @@ geometry_msgs::Transform ToGeometryMsgTransform(const Rigid3d& rigid3d) {
   return transform;
 }
 
-geometry_msgs::Pose ToGeometryMsgPose(const Rigid3d& rigid3d) {
-  geometry_msgs::Pose pose;
+geometry_msgs::msg::Pose ToGeometryMsgPose(const Rigid3d& rigid3d) {
+  geometry_msgs::msg::Pose pose;
   pose.position.x = rigid3d.translation().x();
   pose.position.y = rigid3d.translation().y();
   pose.position.z = rigid3d.translation().z();

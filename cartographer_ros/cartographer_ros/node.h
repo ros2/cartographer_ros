@@ -24,17 +24,19 @@
 #include "cartographer_ros/map_builder_bridge.h"
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/trajectory_options.h"
-#include "cartographer_ros_msgs/FinishTrajectory.h"
-#include "cartographer_ros_msgs/SensorTopics.h"
-#include "cartographer_ros_msgs/StartTrajectory.h"
-#include "cartographer_ros_msgs/SubmapEntry.h"
-#include "cartographer_ros_msgs/SubmapList.h"
-#include "cartographer_ros_msgs/SubmapQuery.h"
-#include "cartographer_ros_msgs/TrajectoryOptions.h"
-#include "cartographer_ros_msgs/TrajectorySubmapList.h"
-#include "cartographer_ros_msgs/WriteAssets.h"
-#include "ros/ros.h"
-#include "tf2_ros/transform_broadcaster.h"
+#include "cartographer_ros_msgs/srv/finish_trajectory.hpp"
+#include "cartographer_ros_msgs/msg/sensor_topics.hpp"
+#include "cartographer_ros_msgs/srv/start_trajectory.hpp"
+#include "cartographer_ros_msgs/msg/submap_entry.hpp"
+#include "cartographer_ros_msgs/msg/submap_list.hpp"
+#include "cartographer_ros_msgs/srv/submap_query.hpp"
+#include "cartographer_ros_msgs/msg/trajectory_options.hpp"
+#include "cartographer_ros_msgs/msg/trajectory_submap_list.hpp"
+#include "cartographer_ros_msgs/srv/write_assets.hpp"
+
+#include <nav_msgs/msg/odometry.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+#include <rclcpp/rclcpp.hpp>
 
 namespace cartographer_ros {
 
@@ -67,64 +69,64 @@ class Node {
   // Starts the first trajectory with the default topics.
   void StartTrajectoryWithDefaultTopics(const TrajectoryOptions& options);
 
-  ::ros::NodeHandle* node_handle();
+  rclcpp::node::Node::SharedPtr node_handle();
   MapBuilderBridge* map_builder_bridge();
 
  private:
-  bool HandleSubmapQuery(
-      cartographer_ros_msgs::SubmapQuery::Request& request,
-      cartographer_ros_msgs::SubmapQuery::Response& response);
-  bool HandleStartTrajectory(
-      cartographer_ros_msgs::StartTrajectory::Request& request,
-      cartographer_ros_msgs::StartTrajectory::Response& response);
-  bool HandleFinishTrajectory(
-      cartographer_ros_msgs::FinishTrajectory::Request& request,
-      cartographer_ros_msgs::FinishTrajectory::Response& response);
-  bool HandleWriteAssets(
-      cartographer_ros_msgs::WriteAssets::Request& request,
-      cartographer_ros_msgs::WriteAssets::Response& response);
+  void HandleSubmapQuery(
+      const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
+      std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response);
+  void HandleStartTrajectory(
+      const std::shared_ptr<::cartographer_ros_msgs::srv::StartTrajectory::Request> request,
+      std::shared_ptr<::cartographer_ros_msgs::srv::StartTrajectory::Response> response);
+  void HandleFinishTrajectory(
+      const std::shared_ptr<::cartographer_ros_msgs::srv::FinishTrajectory::Request> request,
+      std::shared_ptr<::cartographer_ros_msgs::srv::FinishTrajectory::Response> response);
+  void HandleWriteAssets(
+      const std::shared_ptr<::cartographer_ros_msgs::srv::WriteAssets::Request> request,
+      std::shared_ptr<::cartographer_ros_msgs::srv::WriteAssets::Response> response);
   int AddTrajectory(const TrajectoryOptions& options,
-                    const cartographer_ros_msgs::SensorTopics& topics);
+                    const cartographer_ros_msgs::msg::SensorTopics& topics);
   void LaunchSubscribers(const TrajectoryOptions& options,
-                         const cartographer_ros_msgs::SensorTopics& topics,
+                         const cartographer_ros_msgs::msg::SensorTopics& topics,
                          int trajectory_id);
-  void PublishSubmapList(const ::ros::WallTimerEvent& timer_event);
-  void PublishTrajectoryStates(const ::ros::WallTimerEvent& timer_event);
+  void PublishSubmapList();
+  void PublishTrajectoryStates();
   void SpinOccupancyGridThreadForever();
   bool ValidateTrajectoryOptions(const TrajectoryOptions& options);
-  bool ValidateTopicName(const ::cartographer_ros_msgs::SensorTopics& topics,
+  bool ValidateTopicName(const ::cartographer_ros_msgs::msg::SensorTopics& topics,
                          const TrajectoryOptions& options);
 
   const NodeOptions node_options_;
 
-  tf2_ros::TransformBroadcaster tf_broadcaster_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   cartographer::common::Mutex mutex_;
   MapBuilderBridge map_builder_bridge_ GUARDED_BY(mutex_);
 
-  ::ros::NodeHandle node_handle_;
-  ::ros::Publisher submap_list_publisher_;
-  // These ros::ServiceServers need to live for the lifetime of the node.
-  std::vector<::ros::ServiceServer> service_servers_;
-  ::ros::Publisher scan_matched_point_cloud_publisher_;
+  ::rclcpp::node::Node::SharedPtr node_handle_;
+  ::rclcpp::publisher::Publisher<::cartographer_ros_msgs::msg::SubmapList>::SharedPtr submap_list_publisher_;
+  // These rclcpp::service::ServiceBases need to live for the lifetime of the node.
+  std::vector<::rclcpp::service::ServiceBase::SharedPtr> service_servers_;
+  ::rclcpp::publisher::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr scan_matched_point_cloud_publisher_;
   cartographer::common::Time last_scan_matched_point_cloud_time_ =
       cartographer::common::Time::min();
 
   // These are keyed with 'trajectory_id'.
-  std::unordered_map<int, ::ros::Subscriber> laser_scan_subscribers_;
-  std::unordered_map<int, ::ros::Subscriber> multi_echo_laser_scan_subscribers_;
-  std::unordered_map<int, ::ros::Subscriber> odom_subscribers_;
-  std::unordered_map<int, ::ros::Subscriber> imu_subscribers_;
-  std::unordered_map<int, std::vector<::ros::Subscriber>>
+  std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr> laser_scan_subscribers_;
+  std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr> multi_echo_laser_scan_subscribers_;
+  std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr> odom_subscribers_;
+  std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr> imu_subscribers_;
+  std::unordered_map<int, std::vector<::rclcpp::subscription::SubscriptionBase::SharedPtr>>
       point_cloud_subscribers_;
   std::unordered_map<int, bool> is_active_trajectory_ GUARDED_BY(mutex_);
-  ::ros::Publisher occupancy_grid_publisher_;
+  ::rclcpp::publisher::Publisher<::nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_;
   std::thread occupancy_grid_thread_;
   bool terminating_ = false GUARDED_BY(mutex_);
 
-  // We have to keep the timer handles of ::ros::WallTimers around, otherwise
+  // We have to keep the timer handles of ::rclcpp::timer::TimerBase around, otherwise
   // they do not fire.
-  std::vector<::ros::WallTimer> wall_timers_;
+  std::vector<::rclcpp::timer::TimerBase::SharedPtr> wall_timers_;
 };
 
 }  // namespace cartographer_ros

@@ -12,35 +12,69 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-google_binary(cartographer_assets_writer
-  SRCS
-    assets_writer_main.cc
+add_executable(cartographer_node
+  node_main.cc)
+target_include_directories(cartographer_node SYSTEM PUBLIC ${LUA_INCLUDE_DIR})
+target_link_libraries(cartographer_node ${PROJECT_NAME})
+ament_target_dependencies(cartographer_node
+  "cartographer_ros_msgs"
+  "console_bridge"
+  "nav_msgs"
+  "pcl_conversions"
+  "rclcpp"
+  "sensor_msgs"
+  "tf2"
+  "tf2_msgs"
+  "tf2_ros"
 )
 
-google_binary(cartographer_node
-  SRCS
-    node_main.cc
-)
+install(TARGETS
+  cartographer_node
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
 
-install(TARGETS cartographer_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-install(TARGETS cartographer_assets_writer
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-google_binary(cartographer_offline_node
-  SRCS
-    offline_node_main.cc
-)
-
-install(TARGETS cartographer_offline_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# TODO(clalancette): Port these over to ROS2 once we have rosbag
+# add_executable(cartographer_assets_writer
+#   assets_writer_main.cc)
+# target_include_directories(cartographer_assets_writer SYSTEM PUBLIC ${LUA_INCLUDE_DIR})
+# target_link_libraries(cartographer_assets_writer ${PROJECT_NAME})
+# ament_target_dependencies(cartographer_assets_writer
+#   "cartographer_ros_msgs"
+#   "console_bridge"
+#   "nav_msgs"
+#   "pcl_conversions"
+#   "rclcpp"
+#   "sensor_msgs"
+#   "tf2"
+#   "tf2_msgs"
+#   "tf2_ros"
+# )
+#
+# install(TARGETS
+#   cartographer_assets_writer
+#   ARCHIVE DESTINATION lib
+#   LIBRARY DESTINATION lib
+#   RUNTIME DESTINATION bin)
+#
+# add_executable(cartographer_offline_node
+#   offline_node_main.cc)
+# target_include_directories(cartographer_offline_node SYSTEM PUBLIC ${LUA_INCLUDE_DIR})
+# target_link_libraries(cartographer_offline_node ${PROJECT_NAME})
+# ament_target_dependencies(cartographer_offline_node
+#   "cartographer_ros_msgs"
+#   "console_bridge"
+#   "nav_msgs"
+#   "pcl_conversions"
+#   "rclcpp"
+#   "sensor_msgs"
+#   "tf2"
+#   "tf2_msgs"
+#   "tf2_ros"
+# )
+#
+# install(TARGETS
+#   cartographer_offline_node
+#   ARCHIVE DESTINATION lib
+#   LIBRARY DESTINATION lib
+#   RUNTIME DESTINATION bin)

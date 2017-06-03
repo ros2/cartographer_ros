@@ -19,7 +19,9 @@
 #include "cartographer_ros/assets_writer.h"
 #include "cartographer_ros/msg_conversion.h"
 #include "cartographer_ros/occupancy_grid.h"
-#include "cartographer_ros_msgs/TrajectorySubmapList.h"
+#include "cartographer_ros_msgs/msg/trajectory_submap_list.hpp"
+
+#include <nav_msgs/msg/occupancy_grid.hpp>
 
 namespace cartographer_ros {
 
@@ -92,30 +94,30 @@ void MapBuilderBridge::WriteAssets(const string& stem) {
 }
 
 bool MapBuilderBridge::HandleSubmapQuery(
-    cartographer_ros_msgs::SubmapQuery::Request& request,
-    cartographer_ros_msgs::SubmapQuery::Response& response) {
+    const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
+    std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response) {
   cartographer::mapping::proto::SubmapQuery::Response response_proto;
   const std::string error = map_builder_.SubmapToProto(
-      request.trajectory_id, request.submap_index, &response_proto);
+      request->trajectory_id, request->submap_index, &response_proto);
   if (!error.empty()) {
     LOG(ERROR) << error;
     return false;
   }
 
-  response.submap_version = response_proto.submap_version();
-  response.cells.insert(response.cells.begin(), response_proto.cells().begin(),
+  response->submap_version = response_proto.submap_version();
+  response->cells.insert(response->cells.begin(), response_proto.cells().begin(),
                         response_proto.cells().end());
-  response.width = response_proto.width();
-  response.height = response_proto.height();
-  response.resolution = response_proto.resolution();
-  response.slice_pose = ToGeometryMsgPose(
+  response->width = response_proto.width();
+  response->height = response_proto.height();
+  response->resolution = response_proto.resolution();
+  response->slice_pose = ToGeometryMsgPose(
       cartographer::transform::ToRigid3(response_proto.slice_pose()));
   return true;
 }
 
-cartographer_ros_msgs::SubmapList MapBuilderBridge::GetSubmapList() {
-  cartographer_ros_msgs::SubmapList submap_list;
-  submap_list.header.stamp = ::ros::Time::now();
+cartographer_ros_msgs::msg::SubmapList MapBuilderBridge::GetSubmapList() {
+  cartographer_ros_msgs::msg::SubmapList submap_list;
+  submap_list.header.stamp = ::rclcpp::Time::now();
   submap_list.header.frame_id = node_options_.map_frame;
   for (int trajectory_id = 0;
        trajectory_id < map_builder_.num_trajectory_builders();
@@ -126,10 +128,10 @@ cartographer_ros_msgs::SubmapList MapBuilderBridge::GetSubmapList() {
         map_builder_.GetTrajectoryBuilder(trajectory_id)->submaps();
     CHECK_LE(submap_transforms.size(), submaps->size());
 
-    cartographer_ros_msgs::TrajectorySubmapList trajectory_submap_list;
+    cartographer_ros_msgs::msg::TrajectorySubmapList trajectory_submap_list;
     for (size_t submap_index = 0; submap_index != submap_transforms.size();
          ++submap_index) {
-      cartographer_ros_msgs::SubmapEntry submap_entry;
+      cartographer_ros_msgs::msg::SubmapEntry submap_entry;
       submap_entry.submap_version = submaps->Get(submap_index)->num_range_data;
       submap_entry.pose = ToGeometryMsgPose(submap_transforms[submap_index]);
       trajectory_submap_list.submap.push_back(submap_entry);
@@ -139,7 +141,7 @@ cartographer_ros_msgs::SubmapList MapBuilderBridge::GetSubmapList() {
   return submap_list;
 }
 
-std::unique_ptr<nav_msgs::OccupancyGrid>
+std::unique_ptr<nav_msgs::msg::OccupancyGrid>
 MapBuilderBridge::BuildOccupancyGrid() {
   CHECK(node_options_.map_builder_options.use_trajectory_builder_2d())
       << "Publishing OccupancyGrids for 3D data is not yet supported";
@@ -149,10 +151,10 @@ MapBuilderBridge::BuildOccupancyGrid() {
     trajectory_nodes.insert(trajectory_nodes.end(), single_trajectory.begin(),
                             single_trajectory.end());
   }
-  std::unique_ptr<nav_msgs::OccupancyGrid> occupancy_grid;
+  std::unique_ptr<nav_msgs::msg::OccupancyGrid> occupancy_grid;
   if (!trajectory_nodes.empty()) {
     occupancy_grid =
-        cartographer::common::make_unique<nav_msgs::OccupancyGrid>();
+        cartographer::common::make_unique<nav_msgs::msg::OccupancyGrid>();
     CHECK_EQ(trajectory_options_.count(0), 1);
     BuildOccupancyGrid2D(
         trajectory_nodes, node_options_.map_frame,
