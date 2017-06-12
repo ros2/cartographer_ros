@@ -30,7 +30,7 @@ TfBridge::TfBridge(const string& tracking_frame,
 
 std::unique_ptr<::cartographer::transform::Rigid3d> TfBridge::LookupToTracking(
     const ::cartographer::common::Time time, const string& frame_id) const {
-  tf2::Duration timeout(lookup_transform_timeout_sec_ * 1e9);
+  tf2::Duration timeout(tf2::durationFromSec(lookup_transform_timeout_sec_));
   std::unique_ptr<::cartographer::transform::Rigid3d> frame_id_to_tracking;
   try {
     const ::builtin_interfaces::msg::Time latest_tf_time =
@@ -48,7 +48,7 @@ std::unique_ptr<::cartographer::transform::Rigid3d> TfBridge::LookupToTracking(
     if (recovered_tf_time >= recovered) {
       // We already have newer data, so we do not wait. Otherwise, we would wait
       // for the full 'timeout' even if we ask for data that is too old.
-      timeout = tf2::Duration(0.0);
+      timeout = tf2::durationFromSec(0.0);
     }
 
     // TODO(clalancette): We are currently having some problems where the
