@@ -35,7 +35,7 @@
   <build_depend>eigen</build_depend>
   <build_depend>pcl_conversions</build_depend>
   <build_depend>tf2_eigen</build_depend>
-  <build_depend>urdfdom-headers</build_depend>
+  <build_depend>urdfdom_headers</build_depend>
 
   <depend>cartographer</depend>
   <depend>cartographer_ros_msgs</depend>
