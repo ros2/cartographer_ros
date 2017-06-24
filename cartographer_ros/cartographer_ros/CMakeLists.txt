@@ -30,9 +30,7 @@ ament_target_dependencies(cartographer_node
 
 install(TARGETS
   cartographer_node
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin)
+  DESTINATION lib/${PROJECT_NAME})
 
 # TODO(clalancette): Port these over to ROS2 once we have rosbag
 # add_executable(cartographer_assets_writer
