@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <rcutils/logging_macros.h>
+
 #include "cartographer_ros/ros_log_sink.h"
 
 #include <chrono>
@@ -24,10 +26,10 @@
 
 #include "glog/log_severity.h"
 
-#define ROS_INFO_STREAM(str) std::cout << str << std::endl;
-#define ROS_WARN_STREAM(str) std::cout << str << std::endl;
-#define ROS_ERROR_STREAM(str) std::cerr << str << std::endl;
-#define ROS_FATAL_STREAM(str) std::cerr << str << std::endl;
+#define ROS_INFO_STREAM(str) RCUTILS_LOG_INFO(str.c_str())
+#define ROS_WARN_STREAM(str) RCUTILS_LOG_WARN(str.c_str())
+#define ROS_ERROR_STREAM(str) RCUTILS_LOG_ERROR(str.c_str())
+#define ROS_FATAL_STREAM(str) RCUTILS_LOG_FATAL(str.c_str())
 
 namespace cartographer_ros {
 
