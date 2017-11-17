@@ -38,6 +38,11 @@
 #include "cartographer_ros/time_conversion.h"
 #include "glog/logging.h"
 
+#include "rclcpp/clock.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp/time.hpp"
+#include "rclcpp/time_source.hpp"
+
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -165,7 +170,7 @@ void Node::HandleSubmapQuery(
 
 void Node::PublishSubmapList() {
   carto::common::MutexLocker lock(&mutex_);
-  submap_list_publisher_->publish(map_builder_bridge_.GetSubmapList());
+  submap_list_publisher_->publish(map_builder_bridge_.GetSubmapList(node_handle_));
 }
 
 void Node::PublishTrajectoryStates() {
@@ -194,7 +199,11 @@ void Node::PublishTrajectoryStates() {
     } else {
       // If we do not publish a new point cloud, we still allow time of the
       // published poses to advance.
-      stamped_transform.header.stamp = rclcpp::Time::now();
+      rclcpp::TimeSource ts(node_handle_);
+      rclcpp::Clock::SharedPtr clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
+      ts.attachClock(clock);
+
+      stamped_transform.header.stamp = clock->now();
     }
 
     if (trajectory_state.published_to_tracking != nullptr) {

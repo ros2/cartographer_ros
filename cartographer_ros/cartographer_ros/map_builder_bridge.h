@@ -59,7 +59,7 @@ class MapBuilderBridge {
       const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
       std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response);
 
-  cartographer_ros_msgs::msg::SubmapList GetSubmapList();
+  cartographer_ros_msgs::msg::SubmapList GetSubmapList(rclcpp::node::Node::SharedPtr& node);
   std::unique_ptr<nav_msgs::msg::OccupancyGrid> BuildOccupancyGrid();
   std::unordered_map<int, TrajectoryState> GetTrajectoryStates();
 
