@@ -21,12 +21,12 @@
 #include "cartographer_ros/occupancy_grid.h"
 #include "cartographer_ros_msgs/msg/trajectory_submap_list.hpp"
 
-#include "rclcpp/clock.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "rclcpp/time.hpp"
-#include "rclcpp/time_source.hpp"
-
 #include <nav_msgs/msg/occupancy_grid.hpp>
+
+#include <rclcpp/clock.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/time.hpp>
+#include <rclcpp/time_source.hpp>
 
 namespace cartographer_ros {
 
@@ -120,7 +120,8 @@ bool MapBuilderBridge::HandleSubmapQuery(
   return true;
 }
 
-cartographer_ros_msgs::msg::SubmapList MapBuilderBridge::GetSubmapList(rclcpp::node::Node::SharedPtr& node) {
+cartographer_ros_msgs::msg::SubmapList MapBuilderBridge::GetSubmapList(
+    rclcpp::node::Node::SharedPtr& node) {
   cartographer_ros_msgs::msg::SubmapList submap_list;
   rclcpp::TimeSource ts(node);
   rclcpp::Clock::SharedPtr clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
