@@ -23,11 +23,6 @@
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
 
-#include <rclcpp/clock.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <rclcpp/time.hpp>
-#include <rclcpp/time_source.hpp>
-
 namespace cartographer_ros {
 
 MapBuilderBridge::MapBuilderBridge(const NodeOptions& node_options,
@@ -121,11 +116,8 @@ bool MapBuilderBridge::HandleSubmapQuery(
 }
 
 cartographer_ros_msgs::msg::SubmapList MapBuilderBridge::GetSubmapList(
-    rclcpp::node::Node::SharedPtr& node) {
+    rclcpp::Clock::SharedPtr& clock) {
   cartographer_ros_msgs::msg::SubmapList submap_list;
-  rclcpp::TimeSource ts(node);
-  rclcpp::Clock::SharedPtr clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
-  ts.attachClock(clock);
   submap_list.header.stamp = clock->now();
   submap_list.header.frame_id = node_options_.map_frame;
   for (int trajectory_id = 0;

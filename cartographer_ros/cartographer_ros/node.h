@@ -127,6 +127,9 @@ class Node {
   // We have to keep the timer handles of ::rclcpp::timer::TimerBase around, otherwise
   // they do not fire.
   std::vector<::rclcpp::timer::TimerBase::SharedPtr> wall_timers_;
+
+  std::shared_ptr<rclcpp::TimeSource> ts_;
+  rclcpp::Clock::SharedPtr clock_;
 };
 
 }  // namespace cartographer_ros
