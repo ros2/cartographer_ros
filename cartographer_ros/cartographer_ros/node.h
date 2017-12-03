@@ -105,10 +105,10 @@ class Node {
   MapBuilderBridge map_builder_bridge_ GUARDED_BY(mutex_);
 
   ::rclcpp::node::Node::SharedPtr node_handle_;
-  ::rclcpp::publisher::Publisher<::cartographer_ros_msgs::msg::SubmapList>::SharedPtr submap_list_publisher_;
+  ::rclcpp::Publisher<::cartographer_ros_msgs::msg::SubmapList>::SharedPtr submap_list_publisher_;
   // These rclcpp::service::ServiceBases need to live for the lifetime of the node.
   std::vector<::rclcpp::service::ServiceBase::SharedPtr> service_servers_;
-  ::rclcpp::publisher::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr scan_matched_point_cloud_publisher_;
+  ::rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr scan_matched_point_cloud_publisher_;
   cartographer::common::Time last_scan_matched_point_cloud_time_ =
       cartographer::common::Time::min();
 
@@ -120,7 +120,7 @@ class Node {
   std::unordered_map<int, std::vector<::rclcpp::subscription::SubscriptionBase::SharedPtr>>
       point_cloud_subscribers_;
   std::unordered_map<int, bool> is_active_trajectory_ GUARDED_BY(mutex_);
-  ::rclcpp::publisher::Publisher<::nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_;
+  ::rclcpp::Publisher<::nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_;
   std::thread occupancy_grid_thread_;
   bool terminating_ = false GUARDED_BY(mutex_);
 
