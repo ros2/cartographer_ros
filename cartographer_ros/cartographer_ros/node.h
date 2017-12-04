@@ -124,9 +124,9 @@ class Node {
   std::thread occupancy_grid_thread_;
   bool terminating_ = false GUARDED_BY(mutex_);
 
-  // We have to keep the timer handles of ::rclcpp::timer::TimerBase around, otherwise
+  // We have to keep the timer handles of ::rclcpp::TimerBase around, otherwise
   // they do not fire.
-  std::vector<::rclcpp::timer::TimerBase::SharedPtr> wall_timers_;
+  std::vector<::rclcpp::TimerBase::SharedPtr> wall_timers_;
 
   std::shared_ptr<rclcpp::TimeSource> ts_;
   rclcpp::Clock::SharedPtr clock_;
