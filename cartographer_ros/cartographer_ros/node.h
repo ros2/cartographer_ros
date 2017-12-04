@@ -106,8 +106,8 @@ class Node {
 
   ::rclcpp::node::Node::SharedPtr node_handle_;
   ::rclcpp::Publisher<::cartographer_ros_msgs::msg::SubmapList>::SharedPtr submap_list_publisher_;
-  // These rclcpp::service::ServiceBases need to live for the lifetime of the node.
-  std::vector<::rclcpp::service::ServiceBase::SharedPtr> service_servers_;
+  // These rclcpp::ServiceBases need to live for the lifetime of the node.
+  std::vector<::rclcpp::ServiceBase::SharedPtr> service_servers_;
   ::rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr scan_matched_point_cloud_publisher_;
   cartographer::common::Time last_scan_matched_point_cloud_time_ =
       cartographer::common::Time::min();
