@@ -69,7 +69,7 @@ class Node {
   // Starts the first trajectory with the default topics.
   void StartTrajectoryWithDefaultTopics(const TrajectoryOptions& options);
 
-  rclcpp::node::Node::SharedPtr node_handle();
+  rclcpp::Node::SharedPtr node_handle();
   MapBuilderBridge* map_builder_bridge();
 
  private:
@@ -104,7 +104,7 @@ class Node {
   cartographer::common::Mutex mutex_;
   MapBuilderBridge map_builder_bridge_ GUARDED_BY(mutex_);
 
-  ::rclcpp::node::Node::SharedPtr node_handle_;
+  ::rclcpp::Node::SharedPtr node_handle_;
   ::rclcpp::Publisher<::cartographer_ros_msgs::msg::SubmapList>::SharedPtr submap_list_publisher_;
   // These rclcpp::ServiceBases need to live for the lifetime of the node.
   std::vector<::rclcpp::ServiceBase::SharedPtr> service_servers_;

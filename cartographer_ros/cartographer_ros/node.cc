@@ -161,7 +161,7 @@ Node::~Node() {
   }
 }
 
-::rclcpp::node::Node::SharedPtr Node::node_handle() { return node_handle_; }
+::rclcpp::Node::SharedPtr Node::node_handle() { return node_handle_; }
 
 MapBuilderBridge* Node::map_builder_bridge() { return &map_builder_bridge_; }
 
