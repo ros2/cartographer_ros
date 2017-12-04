@@ -78,7 +78,7 @@ bool FromRosMessage(const cartographer_ros_msgs::msg::TrajectoryOptions& msg,
   return true;
 }
 
-void ShutdownSubscriber(std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr>& subscribers,
+void ShutdownSubscriber(std::unordered_map<int, ::rclcpp::SubscriptionBase::SharedPtr>& subscribers,
                         int trajectory_id) {
   if (subscribers.count(trajectory_id) == 0) {
     return;
@@ -90,7 +90,7 @@ void ShutdownSubscriber(std::unordered_map<int, ::rclcpp::subscription::Subscrip
 
 bool IsTopicNameUnique(
     const string& topic,
-    const std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr>& subscribers) {
+    const std::unordered_map<int, ::rclcpp::SubscriptionBase::SharedPtr>& subscribers) {
   for (auto& entry : subscribers) {
     if (entry.second->get_topic_name() == topic) {
       LOG(ERROR) << "Topic name [" << topic << "] is already used.";
@@ -318,7 +318,7 @@ void Node::LaunchSubscribers(const TrajectoryOptions& options,
             }, custom_qos_profile);
   }
 
-  std::vector<::rclcpp::subscription::SubscriptionBase::SharedPtr> grouped_point_cloud_subscribers;
+  std::vector<::rclcpp::SubscriptionBase::SharedPtr> grouped_point_cloud_subscribers;
   if (options.num_point_clouds > 0) {
     for (int i = 0; i < options.num_point_clouds; ++i) {
       string topic = topics.point_cloud2_topic;

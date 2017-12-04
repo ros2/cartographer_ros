@@ -113,11 +113,11 @@ class Node {
       cartographer::common::Time::min();
 
   // These are keyed with 'trajectory_id'.
-  std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr> laser_scan_subscribers_;
-  std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr> multi_echo_laser_scan_subscribers_;
-  std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr> odom_subscribers_;
-  std::unordered_map<int, ::rclcpp::subscription::SubscriptionBase::SharedPtr> imu_subscribers_;
-  std::unordered_map<int, std::vector<::rclcpp::subscription::SubscriptionBase::SharedPtr>>
+  std::unordered_map<int, ::rclcpp::SubscriptionBase::SharedPtr> laser_scan_subscribers_;
+  std::unordered_map<int, ::rclcpp::SubscriptionBase::SharedPtr> multi_echo_laser_scan_subscribers_;
+  std::unordered_map<int, ::rclcpp::SubscriptionBase::SharedPtr> odom_subscribers_;
+  std::unordered_map<int, ::rclcpp::SubscriptionBase::SharedPtr> imu_subscribers_;
+  std::unordered_map<int, std::vector<::rclcpp::SubscriptionBase::SharedPtr>>
       point_cloud_subscribers_;
   std::unordered_map<int, bool> is_active_trajectory_ GUARDED_BY(mutex_);
   ::rclcpp::Publisher<::nav_msgs::msg::OccupancyGrid>::SharedPtr occupancy_grid_publisher_;
