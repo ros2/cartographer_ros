@@ -25,11 +25,11 @@
   </description>
   <maintainer email="clalancette@openrobotics.org">Chris Lalancette</maintainer>
   <license>Apache 2.0</license>
+  <url>https://github.com/ros2/cartographer_ros</url>
+
   <author email="google-cartographer@googlegroups.com">
     The Cartographer Authors
   </author>
-
-  <url>https://github.com/ros2/cartographer_ros</url>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
