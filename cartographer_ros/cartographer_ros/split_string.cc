@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef CARTOGRAPHER_ROS_ASSETS_WRITER_H_
-#define CARTOGRAPHER_ROS_ASSETS_WRITER_H_
+#include "cartographer_ros/split_string.h"
 
-#include <string>
-#include <vector>
-
-#include "cartographer/mapping/trajectory_node.h"
-#include "cartographer_ros/node_options.h"
+#include <sstream>
 
 namespace cartographer_ros {
 
-// Writes all assets derivable from the 'trajectory_nodes' and 'options'.
-void WriteAssets(const std::vector<::cartographer::mapping::TrajectoryNode>&
-                     trajectory_nodes,
-                 const NodeOptions& options, const std::string& stem);
+std::vector<std::string> SplitString(const std::string& input,
+                                     const char delimiter) {
+  std::istringstream stream(input);
+  std::string token;
+  std::vector<std::string> tokens;
+  while (std::getline(stream, token, delimiter)) {
+    tokens.push_back(token);
+  }
+  return tokens;
+}
 
 }  // namespace cartographer_ros
-
-#endif  // CARTOGRAPHER_ROS_ASSETS_WRITER_H_

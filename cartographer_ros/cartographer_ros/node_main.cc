@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-#include <string>
-#include <vector>
-
-#include "cartographer/common/configuration_file_resolver.h"
-#include "cartographer/common/lua_parameter_dictionary.h"
-#include "cartographer/common/make_unique.h"
-#include "cartographer/common/port.h"
 #include "cartographer_ros/node.h"
+#include "cartographer_ros/node_options.h"
 #include "cartographer_ros/ros_log_sink.h"
 #include "gflags/gflags.h"
-#include "tf2_ros/transform_listener.h"
+#include "cartographer_ros_msgs/srv/finish_trajectory.hpp"
+
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/transform_listener.h>
 
 DEFINE_string(configuration_directory, "",
               "First directory in which configuration files are searched, "
@@ -33,135 +30,43 @@ DEFINE_string(configuration_directory, "",
 DEFINE_string(configuration_basename, "",
               "Basename, i.e. not containing any directory prefix, of the "
               "configuration file.");
+DEFINE_string(map_filename, "", "If non-empty, filename of a map to load.");
+DEFINE_bool(
+    start_trajectory_with_default_topics, true,
+    "Enable to immediately start the first trajectory with default topics.");
+DEFINE_string(
+    save_map_filename, "",
+    "If non-empty, serialize state and write it to disk before shutting down.");
 
 namespace cartographer_ros {
 namespace {
 
-constexpr int kInfiniteSubscriberQueueSize = 0;
-
-NodeOptions LoadOptions() {
-  auto file_resolver = cartographer::common::make_unique<
-      cartographer::common::ConfigurationFileResolver>(
-      std::vector<string>{FLAGS_configuration_directory});
-  const string code =
-      file_resolver->GetFileContentOrDie(FLAGS_configuration_basename);
-  cartographer::common::LuaParameterDictionary lua_parameter_dictionary(
-      code, std::move(file_resolver));
-
-  return CreateNodeOptions(&lua_parameter_dictionary);
-}
-
 void Run() {
-  const auto options = LoadOptions();
   constexpr double kTfBufferCacheTimeInSeconds = 1e6;
-  tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
+  tf2_ros::Buffer tf_buffer{::tf2::durationFromSec(kTfBufferCacheTimeInSeconds)};
   tf2_ros::TransformListener tf(tf_buffer);
-  Node node(options, &tf_buffer);
-  node.Initialize();
+  NodeOptions node_options;
+  TrajectoryOptions trajectory_options;
+  std::tie(node_options, trajectory_options) =
+      LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
-  int trajectory_id = -1;
-  std::unordered_set<string> expected_sensor_ids;
-
-  // For 2D SLAM, subscribe to exactly one horizontal laser.
-  ::ros::Subscriber laser_scan_subscriber;
-  if (options.use_laser_scan) {
-    laser_scan_subscriber = node.node_handle()->subscribe(
-        kLaserScanTopic, kInfiniteSubscriberQueueSize,
-        boost::function<void(const sensor_msgs::LaserScan::ConstPtr&)>(
-            [&](const sensor_msgs::LaserScan::ConstPtr& msg) {
-              node.map_builder_bridge()
-                  ->sensor_bridge(trajectory_id)
-                  ->HandleLaserScanMessage(kLaserScanTopic, msg);
-            }));
-    expected_sensor_ids.insert(kLaserScanTopic);
-  }
-  if (options.use_multi_echo_laser_scan) {
-    laser_scan_subscriber = node.node_handle()->subscribe(
-        kMultiEchoLaserScanTopic, kInfiniteSubscriberQueueSize,
-        boost::function<void(const sensor_msgs::MultiEchoLaserScan::ConstPtr&)>(
-            [&](const sensor_msgs::MultiEchoLaserScan::ConstPtr& msg) {
-              node.map_builder_bridge()
-                  ->sensor_bridge(trajectory_id)
-                  ->HandleMultiEchoLaserScanMessage(kMultiEchoLaserScanTopic,
-                                                    msg);
-            }));
-    expected_sensor_ids.insert(kMultiEchoLaserScanTopic);
+  Node node(node_options, &tf_buffer);
+  if (!FLAGS_map_filename.empty()) {
+    node.LoadMap(FLAGS_map_filename);
   }
 
-  // For 3D SLAM, subscribe to all point clouds topics.
-  std::vector<::ros::Subscriber> point_cloud_subscribers;
-  if (options.num_point_clouds > 0) {
-    for (int i = 0; i < options.num_point_clouds; ++i) {
-      string topic = kPointCloud2Topic;
-      if (options.num_point_clouds > 1) {
-        topic += "_" + std::to_string(i + 1);
-      }
-      point_cloud_subscribers.push_back(node.node_handle()->subscribe(
-          topic, kInfiniteSubscriberQueueSize,
-          boost::function<void(const sensor_msgs::PointCloud2::ConstPtr&)>(
-              [&, topic](const sensor_msgs::PointCloud2::ConstPtr& msg) {
-                node.map_builder_bridge()
-                    ->sensor_bridge(trajectory_id)
-                    ->HandlePointCloud2Message(topic, msg);
-              })));
-      expected_sensor_ids.insert(topic);
-    }
+  if (FLAGS_start_trajectory_with_default_topics) {
+    node.StartTrajectoryWithDefaultTopics(trajectory_options);
   }
 
-  // For 2D SLAM, subscribe to the IMU if we expect it. For 3D SLAM, the IMU is
-  // required.
-  ::ros::Subscriber imu_subscriber;
-  if (options.map_builder_options.use_trajectory_builder_3d() ||
-      (options.map_builder_options.use_trajectory_builder_2d() &&
-       options.map_builder_options.trajectory_builder_2d_options()
-           .use_imu_data())) {
-    imu_subscriber = node.node_handle()->subscribe(
-        kImuTopic, kInfiniteSubscriberQueueSize,
-        boost::function<void(const sensor_msgs::Imu::ConstPtr& msg)>(
-            [&](const sensor_msgs::Imu::ConstPtr& msg) {
-              node.map_builder_bridge()
-                  ->sensor_bridge(trajectory_id)
-                  ->HandleImuMessage(kImuTopic, msg);
-            }));
-    expected_sensor_ids.insert(kImuTopic);
+  rclcpp::spin(node.node_handle());
+
+  node.FinishAllTrajectories();
+  node.RunFinalOptimization();
+
+  if (!FLAGS_save_map_filename.empty()) {
+    node.SerializeState(FLAGS_save_map_filename);
   }
-
-  // For both 2D and 3D SLAM, odometry is optional.
-  ::ros::Subscriber odometry_subscriber;
-  if (options.use_odometry) {
-    odometry_subscriber = node.node_handle()->subscribe(
-        kOdometryTopic, kInfiniteSubscriberQueueSize,
-        boost::function<void(const nav_msgs::Odometry::ConstPtr&)>(
-            [&](const nav_msgs::Odometry::ConstPtr& msg) {
-              node.map_builder_bridge()
-                  ->sensor_bridge(trajectory_id)
-                  ->HandleOdometryMessage(kOdometryTopic, msg);
-            }));
-    expected_sensor_ids.insert(kOdometryTopic);
-  }
-
-  trajectory_id = node.map_builder_bridge()->AddTrajectory(
-      expected_sensor_ids, options.tracking_frame);
-
-  ::ros::ServiceServer finish_trajectory_server =
-      node.node_handle()->advertiseService(
-          kFinishTrajectoryServiceName,
-          boost::function<bool(
-              ::cartographer_ros_msgs::FinishTrajectory::Request&,
-              ::cartographer_ros_msgs::FinishTrajectory::Response&)>([&](
-              ::cartographer_ros_msgs::FinishTrajectory::Request& request,
-              ::cartographer_ros_msgs::FinishTrajectory::Response&) {
-            const int previous_trajectory_id = trajectory_id;
-            trajectory_id = node.map_builder_bridge()->AddTrajectory(
-                expected_sensor_ids, options.tracking_frame);
-            node.map_builder_bridge()->FinishTrajectory(previous_trajectory_id);
-            node.map_builder_bridge()->WriteAssets(request.stem);
-            return true;
-          }));
-
-  ::ros::spin();
-
-  node.map_builder_bridge()->FinishTrajectory(trajectory_id);
 }
 
 }  // namespace
@@ -176,10 +81,9 @@ int main(int argc, char** argv) {
   CHECK(!FLAGS_configuration_basename.empty())
       << "-configuration_basename is missing.";
 
-  ::ros::init(argc, argv, "cartographer_node");
-  ::ros::start();
+  ::rclcpp::init(argc, argv);
 
   cartographer_ros::ScopedRosLogSink ros_log_sink;
   cartographer_ros::Run();
-  ::ros::shutdown();
+  ::rclcpp::shutdown();
 }

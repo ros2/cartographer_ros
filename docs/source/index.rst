@@ -18,10 +18,12 @@ Cartographer ROS Integration
 
 .. toctree::
    :maxdepth: 2
-   :hidden:
 
    configuration
+   tuning
    ros_api
+   assets_writer
+   demos
    data
    faq
 
@@ -66,8 +68,13 @@ We recommend using `wstool <http://wiki.ros.org/wstool>`_ and `rosdep
     wstool merge -t src https://raw.githubusercontent.com/googlecartographer/cartographer_ros/master/cartographer_ros.rosinstall
     wstool update -t src
 
+    # Install proto3.
+    src/cartographer/scripts/install_proto3.sh
+
     # Install deb dependencies.
-    rosdep init
+    # The command 'sudo rosdep init' will print an error if you have already
+    # executed it since installing ROS. This error can be ignored.
+    sudo rosdep init
     rosdep update
     rosdep install --from-paths src --ignore-src --rosdistro=${ROS_DISTRO} -y
 
@@ -98,22 +105,5 @@ the demo:
     # Launch the 3D backpack demo.
     roslaunch cartographer_ros demo_backpack_3d.launch bag_filename:=${HOME}/Downloads/b3-2016-04-05-14-14-00.bag
 
-    # Download the Revo LDS example bag.
-    wget -P ~/Downloads https://storage.googleapis.com/cartographer-public-data/bags/revo_lds/cartographer_paper_revo_lds.bag
-
-    # Launch the Revo LDS demo.
-    roslaunch cartographer_ros demo_revo_lds.launch bag_filename:=${HOME}/Downloads/cartographer_paper_revo_lds.bag
-
-    # Download the PR2 example bag.
-    wget -P ~/Downloads https://storage.googleapis.com/cartographer-public-data/bags/pr2/2011-09-15-08-32-46.bag
-
-    # Launch the PR2 demo.
-    roslaunch cartographer_ros demo_pr2.launch bag_filename:=${HOME}/Downloads/2011-09-15-08-32-46.bag
-
-    # Download the Taurob Tracker example bag.
-    wget -P ~/Downloads https://storage.googleapis.com/cartographer-public-data/bags/taurob_tracker/taurob_tracker_simulation.bag
-
-    # Launch the Taurob Tracker demo.
-    roslaunch cartographer_ros demo_taurob_tracker.launch bag_filename:=${HOME}/Downloads/taurob_tracker_simulation.bag
-
 The launch files will bring up ``roscore`` and ``rviz`` automatically.
+See :doc:`demos` for additional demos including localization and various robots.

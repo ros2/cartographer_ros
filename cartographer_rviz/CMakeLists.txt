@@ -17,6 +17,7 @@ cmake_minimum_required(VERSION 2.8.12)  # Ships with Ubuntu 14.04 (Trusty)
 project(cartographer_rviz)
 
 set(PACKAGE_DEPENDENCIES
+  cartographer_ros
   cartographer_ros_msgs
   eigen_conversions
   message_runtime
@@ -48,15 +49,12 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${QT_LIBRARIES})
 if(rviz_QT_VERSION VERSION_LESS "5")
   message(STATUS "Using Qt4 based on the rviz_QT_VERSION: ${rviz_QT_VERSION}")
   find_package(Qt4 ${rviz_QT_VERSION} EXACT REQUIRED QtCore QtGui)
-  include_directories(${Qt4_INCLUDE_DIRS})
   include(${QT_USE_FILE})
 else()
   message(STATUS "Using Qt5 based on the rviz_QT_VERSION: ${rviz_QT_VERSION}")
   find_package(Qt5 ${rviz_QT_VERSION} EXACT REQUIRED Core Widgets)
-  find_package(Qt5Widgets REQUIRED)
   set(QT_LIBRARIES Qt5::Widgets)
   include_directories(${Qt5Widgets_INCLUDE_DIRS})
-  include_directories(${Qt5_INCLUDE_DIRS})
 endif()
 add_definitions(-DQT_NO_KEYWORDS)
 

@@ -17,7 +17,9 @@
 #ifndef CARTOGRAPHER_RVIZ_SRC_SUBMAPS_DISPLAY_H_
 #define CARTOGRAPHER_RVIZ_SRC_SUBMAPS_DISPLAY_H_
 
+#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "cartographer/common/mutex.h"
@@ -29,6 +31,22 @@
 #include "tf2_ros/transform_listener.h"
 
 namespace cartographer_rviz {
+
+// TODO(gaschler): This should be a private class in SubmapsDisplay,
+// unfortunately, QT does not allow for this. Move the logic out of the struct
+// and use just one slot for all changes.
+struct Trajectory : public QObject {
+  Q_OBJECT
+
+ public:
+  Trajectory(std::unique_ptr<::rviz::BoolProperty> property);
+
+  std::unique_ptr<::rviz::BoolProperty> visibility;
+  std::map<int, std::unique_ptr<DrawableSubmap>> submaps;
+
+ private Q_SLOTS:
+  void AllEnabledToggled();
+};
 
 // RViz plugin used for displaying maps which are represented by a collection of
 // submaps.
@@ -49,6 +67,8 @@ class SubmapsDisplay
 
  private Q_SLOTS:
   void Reset();
+  void AllEnabledToggled();
+  void ResolutionToggled();
 
  private:
   void CreateClient();
@@ -64,11 +84,15 @@ class SubmapsDisplay
   ::tf2_ros::TransformListener tf_listener_;
   ros::ServiceClient client_;
   ::rviz::StringProperty* submap_query_service_property_;
-  ::rviz::StringProperty* map_frame_property_;
+  std::unique_ptr<std::string> map_frame_;
   ::rviz::StringProperty* tracking_frame_property_;
-  using Trajectory = std::vector<std::unique_ptr<DrawableSubmap>>;
-  std::vector<Trajectory> trajectories_ GUARDED_BY(mutex_);
+  Ogre::SceneNode* map_node_ = nullptr;  // Represents the map frame.
+  std::vector<std::unique_ptr<Trajectory>> trajectories_ GUARDED_BY(mutex_);
   ::cartographer::common::Mutex mutex_;
+  ::rviz::BoolProperty* slice_high_resolution_enabled_;
+  ::rviz::BoolProperty* slice_low_resolution_enabled_;
+  ::rviz::Property* trajectories_category_;
+  ::rviz::BoolProperty* visibility_all_enabled_;
 };
 
 }  // namespace cartographer_rviz

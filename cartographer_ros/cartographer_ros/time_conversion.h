@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef CARTOGRAPHER_ROS_GOOGLE_CARTOGRAPHER_SRC_TIME_CONVERSION_H_
-#define CARTOGRAPHER_ROS_GOOGLE_CARTOGRAPHER_SRC_TIME_CONVERSION_H_
+#ifndef CARTOGRAPHER_ROS_TIME_CONVERSION_H_
+#define CARTOGRAPHER_ROS_TIME_CONVERSION_H_
 
 #include "cartographer/common/time.h"
-#include "ros/ros.h"
+
+#include <builtin_interfaces/msg/time.hpp>
 
 namespace cartographer_ros {
 
-::ros::Time ToRos(::cartographer::common::Time time);
+builtin_interfaces::msg::Time ToRos(::cartographer::common::Time time);
 
-::cartographer::common::Time FromRos(const ::ros::Time& time);
+::cartographer::common::Time FromRos(const builtin_interfaces::msg::Time& time);
 
 }  // namespace cartographer_ros
 
-#endif  // CARTOGRAPHER_ROS_GOOGLE_CARTOGRAPHER_SRC_TIME_CONVERSION_H_
+#endif  // CARTOGRAPHER_ROS_TIME_CONVERSION_H_

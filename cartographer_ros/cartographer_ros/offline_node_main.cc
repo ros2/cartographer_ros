@@ -14,18 +14,22 @@
  * limitations under the License.
  */
 
-#include <csignal>
+#include <errno.h>
+#include <string.h>
+#include <sys/resource.h>
+#include <sys/time.h>
+#include <time.h>
+#include <chrono>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "cartographer/common/configuration_file_resolver.h"
-#include "cartographer/common/lua_parameter_dictionary.h"
 #include "cartographer/common/make_unique.h"
 #include "cartographer/common/port.h"
-#include "cartographer_ros/bag_reader.h"
 #include "cartographer_ros/node.h"
+#include "cartographer_ros/node_options.h"
 #include "cartographer_ros/ros_log_sink.h"
+#include "cartographer_ros/split_string.h"
 #include "cartographer_ros/urdf_reader.h"
 #include "gflags/gflags.h"
 #include "ros/callback_queue.h"
@@ -47,108 +51,57 @@ DEFINE_string(bag_filenames, "", "Comma-separated list of bags to process.");
 DEFINE_string(
     urdf_filename, "",
     "URDF file that contains static links for your sensor configuration.");
-DEFINE_bool(
-    use_bag_transforms, true,
-    "Whether to read, use and republish the transforms from the bag.");
+DEFINE_bool(use_bag_transforms, true,
+            "Whether to read, use and republish the transforms from the bag.");
+DEFINE_string(pbstream_filename, "",
+              "If non-empty, filename of a pbstream to load.");
+DEFINE_bool(keep_running, false,
+            "Keep running the offline node after all messages from the bag "
+            "have been processed.");
 
 namespace cartographer_ros {
 namespace {
 
-constexpr int kLatestOnlyPublisherQueueSize = 1;
 constexpr char kClockTopic[] = "clock";
-constexpr char kTfTopic [] = "tf";
+constexpr char kTfStaticTopic[] = "/tf_static";
+constexpr char kTfTopic[] = "tf";
+constexpr double kClockPublishFrequencySec = 1. / 30.;
+constexpr int kSingleThreaded = 1;
 
-volatile std::sig_atomic_t sigint_triggered = 0;
+void Run(const std::vector<std::string>& bag_filenames) {
+  const std::chrono::time_point<std::chrono::steady_clock> start_time =
+      std::chrono::steady_clock::now();
+  NodeOptions node_options;
+  TrajectoryOptions trajectory_options;
+  std::tie(node_options, trajectory_options) =
+      LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
-void SigintHandler(int) { sigint_triggered = 1; }
-
-std::vector<string> SplitString(const string& input, const char delimiter) {
-  std::stringstream stream(input);
-  string token;
-  std::vector<string> tokens;
-  while (std::getline(stream, token, delimiter)) {
-    tokens.push_back(token);
-  }
-  return tokens;
-}
-
-NodeOptions LoadOptions() {
-  auto file_resolver = cartographer::common::make_unique<
-      cartographer::common::ConfigurationFileResolver>(
-      std::vector<string>{FLAGS_configuration_directory});
-  const string code =
-      file_resolver->GetFileContentOrDie(FLAGS_configuration_basename);
-  cartographer::common::LuaParameterDictionary lua_parameter_dictionary(
-      code, std::move(file_resolver));
-
-  return CreateNodeOptions(&lua_parameter_dictionary);
-}
-
-void Run(const std::vector<string>& bag_filenames) {
-  auto options = LoadOptions();
-
-  auto tf_buffer =
-      ::cartographer::common::make_unique<tf2_ros::Buffer>(::ros::DURATION_MAX);
-
-  if (FLAGS_use_bag_transforms) {
-    LOG(INFO) << "Pre-loading transforms from bag...";
-    // TODO(damonkohler): Support multi-trajectory.
-    CHECK_EQ(bag_filenames.size(), 1);
-    ReadTransformsFromBag(bag_filenames.back(), tf_buffer.get());
-  }
+  tf2_ros::Buffer tf_buffer;
 
   std::vector<geometry_msgs::TransformStamped> urdf_transforms;
   if (!FLAGS_urdf_filename.empty()) {
     urdf_transforms =
-        ReadStaticTransformsFromUrdf(FLAGS_urdf_filename, tf_buffer.get());
+        ReadStaticTransformsFromUrdf(FLAGS_urdf_filename, &tf_buffer);
   }
 
-  tf_buffer->setUsingDedicatedThread(true);
+  tf_buffer.setUsingDedicatedThread(true);
 
   // Since we preload the transform buffer, we should never have to wait for a
   // transform. When we finish processing the bag, we will simply drop any
   // remaining sensor data that cannot be transformed due to missing transforms.
-  options.lookup_transform_timeout_sec = 0.;
-  Node node(options, tf_buffer.get());
-  node.Initialize();
+  node_options.lookup_transform_timeout_sec = 0.;
+  Node node(node_options, &tf_buffer);
+  if (!FLAGS_pbstream_filename.empty()) {
+    // TODO(jihoonl): LoadMap should be replaced by some better deserialization
+    // of full SLAM state as non-frozen trajectories once possible
+    node.LoadMap(FLAGS_pbstream_filename);
+  }
 
-  std::unordered_set<string> expected_sensor_ids;
-  const auto check_insert = [&expected_sensor_ids, &node](const string& topic) {
+  std::unordered_set<std::string> expected_sensor_ids;
+  for (const std::string& topic :
+       node.ComputeDefaultTopics(trajectory_options)) {
     CHECK(expected_sensor_ids.insert(node.node_handle()->resolveName(topic))
               .second);
-  };
-
-  // For 2D SLAM, subscribe to exactly one horizontal laser.
-  if (options.use_laser_scan) {
-    check_insert(kLaserScanTopic);
-  }
-  if (options.use_multi_echo_laser_scan) {
-    check_insert(kMultiEchoLaserScanTopic);
-  }
-
-  // For 3D SLAM, subscribe to all point clouds topics.
-  if (options.num_point_clouds > 0) {
-    for (int i = 0; i < options.num_point_clouds; ++i) {
-      string topic = kPointCloud2Topic;
-      if (options.num_point_clouds > 1) {
-        topic += "_" + std::to_string(i + 1);
-      }
-      check_insert(topic);
-    }
-  }
-
-  // For 2D SLAM, subscribe to the IMU if we expect it. For 3D SLAM, the IMU is
-  // required.
-  if (options.map_builder_options.use_trajectory_builder_3d() ||
-      (options.map_builder_options.use_trajectory_builder_2d() &&
-       options.map_builder_options.trajectory_builder_2d_options()
-           .use_imu_data())) {
-    check_insert(kImuTopic);
-  }
-
-  // For both 2D and 3D SLAM, odometry is optional.
-  if (options.use_odometry) {
-    check_insert(kOdometryTopic);
   }
 
   ::ros::Publisher tf_publisher =
@@ -165,13 +118,23 @@ void Run(const std::vector<string>& bag_filenames) {
     static_tf_broadcaster.sendTransform(urdf_transforms);
   }
 
-  for (const string& bag_filename : bag_filenames) {
-    if (sigint_triggered) {
+  ros::AsyncSpinner async_spinner(kSingleThreaded);
+  async_spinner.start();
+  rosgraph_msgs::Clock clock;
+  auto clock_republish_timer = node.node_handle()->createWallTimer(
+      ::ros::WallDuration(kClockPublishFrequencySec),
+      [&clock_publisher, &clock](const ::ros::WallTimerEvent&) {
+        clock_publisher.publish(clock);
+      },
+      false /* oneshot */, false /* autostart */);
+
+  for (const std::string& bag_filename : bag_filenames) {
+    if (!::ros::ok()) {
       break;
     }
 
-    const int trajectory_id = node.map_builder_bridge()->AddTrajectory(
-        expected_sensor_ids, options.tracking_frame);
+    const int trajectory_id =
+        node.AddOfflineTrajectory(expected_sensor_ids, trajectory_options);
 
     rosbag::Bag bag;
     bag.open(bag_filename, rosbag::bagmode::Read);
@@ -179,67 +142,116 @@ void Run(const std::vector<string>& bag_filenames) {
     const ::ros::Time begin_time = view.getBeginTime();
     const double duration_in_seconds = (view.getEndTime() - begin_time).toSec();
 
+    // We need to keep 'tf_buffer' small because it becomes very inefficient
+    // otherwise. We make sure that tf_messages are published before any data
+    // messages, so that tf lookups always work.
+    std::deque<rosbag::MessageInstance> delayed_messages;
+    // We publish tf messages one second earlier than other messages. Under
+    // the assumption of higher frequency tf this should ensure that tf can
+    // always interpolate.
+    const ::ros::Duration kDelay(1.);
     for (const rosbag::MessageInstance& msg : view) {
-      if (sigint_triggered) {
+      if (!::ros::ok()) {
         break;
       }
 
       if (FLAGS_use_bag_transforms && msg.isType<tf2_msgs::TFMessage>()) {
         auto tf_message = msg.instantiate<tf2_msgs::TFMessage>();
         tf_publisher.publish(tf_message);
+
+        for (const auto& transform : tf_message->transforms) {
+          try {
+            tf_buffer.setTransform(transform, "unused_authority",
+                                   msg.getTopic() == kTfStaticTopic);
+          } catch (const tf2::TransformException& ex) {
+            LOG(WARNING) << ex.what();
+          }
+        }
       }
 
-      const string topic =
+      while (!delayed_messages.empty() &&
+             delayed_messages.front().getTime() < msg.getTime() - kDelay) {
+        const rosbag::MessageInstance& delayed_msg = delayed_messages.front();
+        const std::string topic = node.node_handle()->resolveName(
+            delayed_msg.getTopic(), false /* resolve */);
+        if (delayed_msg.isType<sensor_msgs::LaserScan>()) {
+          node.HandleLaserScanMessage(
+              trajectory_id, topic,
+              delayed_msg.instantiate<sensor_msgs::LaserScan>());
+        }
+        if (delayed_msg.isType<sensor_msgs::MultiEchoLaserScan>()) {
+          node.HandleMultiEchoLaserScanMessage(
+              trajectory_id, topic,
+              delayed_msg.instantiate<sensor_msgs::MultiEchoLaserScan>());
+        }
+        if (delayed_msg.isType<sensor_msgs::PointCloud2>()) {
+          node.HandlePointCloud2Message(
+              trajectory_id, topic,
+              delayed_msg.instantiate<sensor_msgs::PointCloud2>());
+        }
+        if (delayed_msg.isType<sensor_msgs::Imu>()) {
+          node.HandleImuMessage(trajectory_id, topic,
+                                delayed_msg.instantiate<sensor_msgs::Imu>());
+        }
+        if (delayed_msg.isType<nav_msgs::Odometry>()) {
+          node.HandleOdometryMessage(
+              trajectory_id, topic,
+              delayed_msg.instantiate<nav_msgs::Odometry>());
+        }
+        clock.clock = delayed_msg.getTime();
+        clock_publisher.publish(clock);
+
+        LOG_EVERY_N(INFO, 100000)
+            << "Processed " << (delayed_msg.getTime() - begin_time).toSec()
+            << " of " << duration_in_seconds << " bag time seconds...";
+
+        delayed_messages.pop_front();
+      }
+
+      const std::string topic =
           node.node_handle()->resolveName(msg.getTopic(), false /* resolve */);
       if (expected_sensor_ids.count(topic) == 0) {
         continue;
       }
-      if (msg.isType<sensor_msgs::LaserScan>()) {
-        node.map_builder_bridge()
-            ->sensor_bridge(trajectory_id)
-            ->HandleLaserScanMessage(topic,
-                                     msg.instantiate<sensor_msgs::LaserScan>());
-      }
-      if (msg.isType<sensor_msgs::MultiEchoLaserScan>()) {
-        node.map_builder_bridge()
-            ->sensor_bridge(trajectory_id)
-            ->HandleMultiEchoLaserScanMessage(
-                topic, msg.instantiate<sensor_msgs::MultiEchoLaserScan>());
-      }
-      if (msg.isType<sensor_msgs::PointCloud2>()) {
-        node.map_builder_bridge()
-            ->sensor_bridge(trajectory_id)
-            ->HandlePointCloud2Message(
-                topic, msg.instantiate<sensor_msgs::PointCloud2>());
-      }
-      if (msg.isType<sensor_msgs::Imu>()) {
-        node.map_builder_bridge()
-            ->sensor_bridge(trajectory_id)
-            ->HandleImuMessage(topic, msg.instantiate<sensor_msgs::Imu>());
-      }
-      if (msg.isType<nav_msgs::Odometry>()) {
-        node.map_builder_bridge()
-            ->sensor_bridge(trajectory_id)
-            ->HandleOdometryMessage(topic,
-                                    msg.instantiate<nav_msgs::Odometry>());
-      }
-
-      rosgraph_msgs::Clock clock;
-      clock.clock = msg.getTime();
-      clock_publisher.publish(clock);
-
-      ::ros::spinOnce();
-
-      LOG_EVERY_N(INFO, 100000)
-          << "Processed " << (msg.getTime() - begin_time).toSec() << " of "
-          << duration_in_seconds << " bag time seconds...";
+      delayed_messages.push_back(msg);
     }
 
     bag.close();
-    node.map_builder_bridge()->FinishTrajectory(trajectory_id);
+    node.FinishTrajectory(trajectory_id);
   }
 
-  node.map_builder_bridge()->WriteAssets(bag_filenames.front());
+  // Ensure the clock is republished after the bag has been finished, during the
+  // final optimization, serialization, and optional indefinite spinning at the
+  // end.
+  clock_republish_timer.start();
+  node.RunFinalOptimization();
+
+  const std::chrono::time_point<std::chrono::steady_clock> end_time =
+      std::chrono::steady_clock::now();
+  const double wall_clock_seconds =
+      std::chrono::duration_cast<std::chrono::duration<double>>(end_time -
+                                                                start_time)
+          .count();
+
+  LOG(INFO) << "Elapsed wall clock time: " << wall_clock_seconds << " s";
+#ifdef __linux__
+  timespec cpu_timespec = {};
+  clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &cpu_timespec);
+  LOG(INFO) << "Elapsed CPU time: "
+            << (cpu_timespec.tv_sec + 1e-9 * cpu_timespec.tv_nsec) << " s";
+  rusage usage;
+  CHECK_EQ(getrusage(RUSAGE_SELF, &usage), 0) << strerror(errno);
+  LOG(INFO) << "Peak memory usage: " << usage.ru_maxrss << " KiB";
+#endif
+
+  if (::ros::ok()) {
+    const std::string output_filename = bag_filenames.front() + ".pbstream";
+    LOG(INFO) << "Writing state to '" << output_filename << "'...";
+    node.SerializeState(output_filename);
+  }
+  if (FLAGS_keep_running) {
+    ::ros::waitForShutdown();
+  }
 }
 
 }  // namespace
@@ -255,9 +267,7 @@ int main(int argc, char** argv) {
       << "-configuration_basename is missing.";
   CHECK(!FLAGS_bag_filenames.empty()) << "-bag_filenames is missing.";
 
-  std::signal(SIGINT, &::cartographer_ros::SigintHandler);
-  ::ros::init(argc, argv, "cartographer_offline_node",
-              ::ros::init_options::NoSigintHandler);
+  ::ros::init(argc, argv, "cartographer_offline_node");
   ::ros::start();
 
   cartographer_ros::ScopedRosLogSink ros_log_sink;

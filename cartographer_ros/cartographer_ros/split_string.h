@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef CARTOGRAPHER_ROS_BAG_READER_H_
-#define CARTOGRAPHER_ROS_BAG_READER_H_
+#ifndef CARTOGRAPHER_ROS_SPLIT_STRING_H_
+#define CARTOGRAPHER_ROS_SPLIT_STRING_H_
 
-#include "cartographer/common/port.h"
-#include "tf2_ros/buffer.h"
+#include <string>
+#include <vector>
 
 namespace cartographer_ros {
 
-void ReadTransformsFromBag(
-    const string& bag_filename, tf2_ros::Buffer* const tf_buffer);
+// Split 'input' at 'delimiter'.
+std::vector<std::string> SplitString(const std::string& input, char delimiter);
 
 }  // namespace cartographer_ros
 
-#endif  // CARTOGRAPHER_ROS_BAG_READER_H_
+#endif  // CARTOGRAPHER_ROS_SPLIT_STRING_H_

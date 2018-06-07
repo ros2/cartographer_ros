@@ -16,9 +16,5 @@ int32 trajectory_id
 int32 submap_index
 ---
 int32 submap_version
-uint8[] cells
-int32 width
-int32 height
-float64 resolution
-geometry_msgs/Pose slice_pose
+SubmapTexture[] textures
 string error_message
