@@ -32,7 +32,7 @@ include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
 set(BUILD_SHARED_LIBS OFF)
 
 google_initialize_cartographer_project()
-google_enable_testing()
+# google_enable_testing()
 
 find_package(cartographer_ros_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
