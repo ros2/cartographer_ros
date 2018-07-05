@@ -40,7 +40,6 @@
 
   <depend>cartographer</depend>
   <depend>cartographer_ros_msgs</depend>
-  <depend>console_bridge</depend>
   <depend>lua5.2-dev</depend>
   <depend>nav_msgs</depend>
   <depend>libpcl-all-dev</depend>

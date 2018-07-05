@@ -51,7 +51,6 @@ find_package(visualization_msgs REQUIRED)
 include(FindPkgConfig)
 
 
-find_package(console_bridge REQUIRED)
 find_package(LuaGoogle REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(Eigen3 REQUIRED)

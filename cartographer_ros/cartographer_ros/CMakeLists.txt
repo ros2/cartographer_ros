@@ -18,7 +18,6 @@ target_include_directories(cartographer_node SYSTEM PUBLIC ${LUA_INCLUDE_DIR})
 target_link_libraries(cartographer_node ${PROJECT_NAME})
 ament_target_dependencies(cartographer_node
   "cartographer_ros_msgs"
-  "console_bridge"
   "geometry_msgs"
   "nav_msgs"
   "pcl_conversions"
