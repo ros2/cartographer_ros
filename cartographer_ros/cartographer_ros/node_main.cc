@@ -42,15 +42,17 @@ namespace cartographer_ros {
 namespace {
 
 void Run() {
+  auto node_handle = rclcpp::Node::make_shared("cartographer_node");
   constexpr double kTfBufferCacheTimeInSeconds = 1e6;
-  tf2_ros::Buffer tf_buffer{::tf2::durationFromSec(kTfBufferCacheTimeInSeconds)};
+  tf2_ros::Buffer tf_buffer(
+    node_handle->get_clock(), ::tf2::durationFromSec(kTfBufferCacheTimeInSeconds));
   tf2_ros::TransformListener tf(tf_buffer);
   NodeOptions node_options;
   TrajectoryOptions trajectory_options;
   std::tie(node_options, trajectory_options) =
       LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
-  Node node(node_options, &tf_buffer);
+  Node node(node_options, node_handle, &tf_buffer);
   if (!FLAGS_map_filename.empty()) {
     node.LoadMap(FLAGS_map_filename);
   }

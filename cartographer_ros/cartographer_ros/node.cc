@@ -85,9 +85,10 @@ namespace carto = ::cartographer;
 
 using carto::transform::Rigid3d;
 
-Node::Node(const NodeOptions& node_options, tf2_ros::Buffer* const tf_buffer)
+Node::Node(const NodeOptions& node_options, rclcpp::Node::SharedPtr node_handle, tf2_ros::Buffer* const tf_buffer)
     : node_options_(node_options),
-      map_builder_bridge_(node_options_, tf_buffer) {
+      map_builder_bridge_(node_options_, tf_buffer),
+      node_handle_(node_handle) {
   carto::common::MutexLocker lock(&mutex_);
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
 
@@ -95,7 +96,6 @@ Node::Node(const NodeOptions& node_options, tf2_ros::Buffer* const tf_buffer)
   custom_qos_profile.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
   custom_qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
 
-  node_handle_ = rclcpp::Node::make_shared("cartographer_node");
   submap_list_publisher_ =
       node_handle_->create_publisher<::cartographer_ros_msgs::msg::SubmapList>(
           kSubmapListTopic, custom_qos_profile);
