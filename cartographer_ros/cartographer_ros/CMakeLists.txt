@@ -30,10 +30,21 @@ ament_target_dependencies(cartographer_node
   "visualization_msgs"
 )
 
+add_executable(occupancy_grid_node 
+  occupancy_grid_node_main.cc)
+target_include_directories(occupancy_grid_node SYSTEM PUBLIC ${LUA_INCLUDE_DIR})
+target_link_libraries(occupancy_grid_node ${PROJECT_NAME})
+ament_target_dependencies(occupancy_grid_node 
+  "cartographer_ros_msgs"
+  "nav_msgs"
+  "rclcpp"
+  "std_msgs"
+)
+
 install(TARGETS
   cartographer_node
+  occupancy_grid_node
   DESTINATION lib/${PROJECT_NAME})
-
 
 # google_binary(cartographer_assets_writer
 #   SRCS

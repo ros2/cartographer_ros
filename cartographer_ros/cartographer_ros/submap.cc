@@ -75,11 +75,12 @@ SubmapTexture::Pixels UnpackTextureData(const std::string& compressed_cells,
 
 std::unique_ptr<SubmapTextures> FetchSubmapTextures(
     const ::cartographer::mapping::SubmapId& submap_id,
-    ros::ServiceClient* client) {
-  ::cartographer_ros_msgs::SubmapQuery srv;
+    ::rclcpp::Client<::cartographer_ros_msgs::srv::SubmapQuery>::SharedPtr client){// ros::ServiceClient* client) {
+  cartographer_ros_msgs::srv::SubmapQuery srv;
   srv.request.trajectory_id = submap_id.trajectory_id;
   srv.request.submap_index = submap_id.submap_index;
-  if (!client->call(srv)) {
+  // if (!client->call(srv)) {
+  while (!client->wait_for_service(std::chrono::seconds(1))) {
     return nullptr;
   }
   CHECK(!srv.response.textures.empty());
