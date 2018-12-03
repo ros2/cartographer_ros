@@ -56,7 +56,7 @@ using ::cartographer::mapping::SubmapId;
 
 class Node {
  public:
-  explicit Node(double resolution, double publish_period_sec);
+  explicit Node(rclcpp::Node::SharedPtr node_handle, double resolution, double publish_period_sec);
   ~Node() {}
 
   Node(const Node&) = delete;
@@ -64,11 +64,11 @@ class Node {
 
  private:
   void HandleSubmapList(const cartographer_ros_msgs::msg::SubmapList::SharedPtr msg);
-  void DrawAndPublish(const ::ros::WallTimerEvent& timer_event);
-  void PublishOccupancyGrid(const std::string& frame_id, const ros::Time& time,
+  // void DrawAndPublish(const ::rclcpp::WallTimerEvent& timer_event);
+  void DrawAndPublish(void);
+  void PublishOccupancyGrid(const std::string& frame_id, const ::rclcpp::Time& time,
                             const Eigen::Array2f& origin,
                             cairo_surface_t* surface);
-  void Run();
 
   // ::ros::NodeHandle node_handle_;
   ::rclcpp::Node::SharedPtr node_handle_;
@@ -90,8 +90,9 @@ class Node {
   ::rclcpp::Time last_timestamp_;
 };
 
-Node::Node(const double resolution, const double publish_period_sec)
-    : resolution_(resolution)
+Node::Node(rclcpp::Node::SharedPtr node_handle, const double resolution, const double publish_period_sec)
+    : node_handle_(node_handle),
+      resolution_(resolution)      
 {
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
 
@@ -107,16 +108,16 @@ Node::Node(const double resolution, const double publish_period_sec)
       //     [this](const cartographer_ros_msgs::SubmapList::ConstPtr& msg) {
       //       HandleSubmapList(msg);
       //     }))),
-  occupancy_grid_publisher_ = node_handle_->create_publisher<::nav_msgs::msg::OccupancyGrid>(
-      kSubmapListTopic, custom_qos_profile);
+  // occupancy_grid_publisher_ = node_handle_->create_publisher<::nav_msgs::msg::OccupancyGrid>(
+  //     kSubmapListTopic, custom_qos_profile);
 
-  occupancy_grid_publisher_timer_ = node_handle_->create_wall_timer(publish_period_sec, std::bind(&Node::DrawAndPublish, this));
-                                    // ::ros::WallDuration(publish_period_sec),
-                                    // &Node::DrawAndPublish, this))
+  // occupancy_grid_publisher_timer_ = node_handle_->create_wall_timer(publish_period_sec, std::bind(&Node::DrawAndPublish, this));
+  //                                   // ::ros::WallDuration(publish_period_sec),
+  //                                   // &Node::DrawAndPublish, this))
 }
 
-// void Node::HandleSubmapList(
-//     const cartographer_ros_msgs::msg::SubmapList::SharedPtr msg) {
+void Node::HandleSubmapList(const cartographer_ros_msgs::msg::SubmapList::SharedPtr msg) 
+{
 //   ::cartographer::common::MutexLocker locker(&mutex_);
 
 //   // We do not do any work if nobody listens.
@@ -171,23 +172,24 @@ Node::Node(const double resolution, const double publish_period_sec)
 
 //   last_timestamp_ = msg->header.stamp;
 //   last_frame_id_ = msg->header.frame_id;
-// }
+}
 
-// void Node::DrawAndPublish(const ::ros::WallTimerEvent& unused_timer_event) {
-//   if (submap_slices_.empty() || last_frame_id_.empty()) {
-//     return;
-//   }
+void Node::DrawAndPublish(void) 
+{
+  // if (submap_slices_.empty() || last_frame_id_.empty()) 
+  //   return;
 
-//   ::cartographer::common::MutexLocker locker(&mutex_);
-//   auto painted_slices = PaintSubmapSlices(submap_slices_, resolution_);
-//   PublishOccupancyGrid(last_frame_id_, last_timestamp_, painted_slices.origin,
-//                        painted_slices.surface.get());
-// }
+  // ::cartographer::common::MutexLocker locker(&mutex_);
+  // auto painted_slices = PaintSubmapSlices(submap_slices_, resolution_);
+  // PublishOccupancyGrid(last_frame_id_, last_timestamp_, painted_slices.origin,
+  //                      painted_slices.surface.get());
+}
 
-// void Node::PublishOccupancyGrid(const std::string& frame_id,
-//                                 const ros::Time& time,
-//                                 const Eigen::Array2f& origin,
-//                                 cairo_surface_t* surface) {
+void Node::PublishOccupancyGrid(const std::string& frame_id, 
+                                const ::rclcpp::Time& time,
+                                const Eigen::Array2f& origin,
+                                cairo_surface_t* surface) 
+{
 //   nav_msgs::OccupancyGrid occupancy_grid;
 //   const int width = cairo_image_surface_get_width(surface);
 //   const int height = cairo_image_surface_get_height(surface);
@@ -223,12 +225,6 @@ Node::Node(const double resolution, const double publish_period_sec)
 //     }
 //   }
 //   occupancy_grid_publisher_.publish(occupancy_grid);
-// }
-
-void Run(rclcpp::Node::SharedPtr node_handle)
-{
-  node_handle = ::rclcpp::Node::make_shared("cartographer_occupancy_grid_node");
-  rclcpp::spin(node_handle);
 }
 
 }  // namespace
@@ -239,13 +235,17 @@ int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
 
   ::rclcpp::init(argc, argv);
+
+  auto node_handle = ::rclcpp::Node::make_shared("cartographer_occupancy_grid_node");
   // ::ros::init(argc, argv, "cartographer_occupancy_grid_node");
   // ::ros::start();
 
   cartographer_ros::ScopedRosLogSink ros_log_sink;
-  ::cartographer_ros::Node node(FLAGS_resolution, FLAGS_publish_period_sec);
+  ::cartographer_ros::Node node(node_handle, FLAGS_resolution, FLAGS_publish_period_sec);
 
-  ::cartographer_ros::Run();
+  // ::cartographer_ros::Run();
+  rclcpp::spin(node_handle);
+
   ::rclcpp::shutdown();
   // ::ros::spin();
   // ::ros::shutdown();
