@@ -20,7 +20,8 @@
 #include "cartographer/common/port.h"
 #include "cartographer/transform/transform.h"
 #include "cartographer_ros/msg_conversion.h"
-#include "cartographer_ros_msgs/SubmapQuery.h"
+// #include "cartographer_ros_msgs/SubmapQuery.h"
+#include "cartographer_ros_msgs/srv/submap_query.hpp"
 
 namespace cartographer_ros {
 
@@ -76,17 +77,35 @@ SubmapTexture::Pixels UnpackTextureData(const std::string& compressed_cells,
 std::unique_ptr<SubmapTextures> FetchSubmapTextures(
     const ::cartographer::mapping::SubmapId& submap_id,
     ::rclcpp::Client<::cartographer_ros_msgs::srv::SubmapQuery>::SharedPtr client){// ros::ServiceClient* client) {
-  cartographer_ros_msgs::srv::SubmapQuery srv;
-  srv.request.trajectory_id = submap_id.trajectory_id;
-  srv.request.submap_index = submap_id.submap_index;
+  // cartographer_ros_msgs::srv::SubmapQuery srv;
+  // srv.request.trajectory_id = submap_id.trajectory_id;
+  // srv.request.submap_index = submap_id.submap_index;
   // if (!client->call(srv)) {
-  while (!client->wait_for_service(std::chrono::seconds(1))) {
-    return nullptr;
-  }
-  CHECK(!srv.response.textures.empty());
+  // while (!client->wait_for_service(std::chrono::seconds(1))) {
+  //   return nullptr;
+  // }
+
+  auto srv_request = std::make_shared<cartographer_ros_msgs::srv::SubmapQuery::Request>();
+  srv_request->trajectory_id = submap_id.trajectory_id;
+  srv_request->submap_index = submap_id.submap_index;
+
+  auto result = client->async_send_request(srv_request);
+  // if (rclcpp::spin_until_future_complete(node, result) ==
+  //   rclcpp::executor::FutureReturnCode::SUCCESS)
+  // {
+  //   return result.get();
+  // } else {
+  //   return NULL;
+  // }
+
+  auto srv_response = result.get();
+  // CHECK(!result);
+  // auto result = send_request(node, client, request);
+  // CHECK(!srv.response.textures.empty());
   auto response = ::cartographer::common::make_unique<SubmapTextures>();
-  response->version = srv.response.submap_version;
-  for (const auto& texture : srv.response.textures) {
+  // response->version = srv.response.submap_version;
+  response->version = srv_response->submap_version;
+  for (const auto& texture : srv_response->textures) {
     const std::string compressed_cells(texture.cells.begin(),
                                        texture.cells.end());
     response->textures.emplace_back(SubmapTexture{

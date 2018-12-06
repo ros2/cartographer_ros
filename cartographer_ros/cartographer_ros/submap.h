@@ -25,8 +25,8 @@
 #include "cartographer/mapping/id.h"
 #include "cartographer/transform/rigid_transform.h"
 // #include "ros/ros.h"
-#include <cartographer_ros_msgs/srv/submap_query.hpp>
-#include <rclcpp/rclcpp.hpp>
+#include "cartographer_ros_msgs/srv/submap_query.hpp"
+#include "rclcpp/rclcpp.hpp"
 
 namespace cartographer_ros {
 
@@ -51,7 +51,7 @@ struct SubmapTextures {
 // on error.
 std::unique_ptr<SubmapTextures> FetchSubmapTextures(
     const ::cartographer::mapping::SubmapId& submap_id,
-    ::rclcpp::Client<cartographer_ros_msgs::srv::SubmapQuery>::SharedPtr client);
+    ::rclcpp::Client<::cartographer_ros_msgs::srv::SubmapQuery>::SharedPtr client);
     // ros::ServiceClient* client);
 
 // Unpacks cell data as provided by the backend into 'intensity' and 'alpha'.
