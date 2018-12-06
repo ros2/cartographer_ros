@@ -104,6 +104,7 @@ set(ALL_SRCS
   "cartographer_ros/tf_bridge.cc"
   "cartographer_ros/time_conversion.cc"
   "cartographer_ros/trajectory_options.cc"
+  "cartographer_ros/submap.cc"
   )
 add_library(${PROJECT_NAME} ${ALL_SRCS})
 add_subdirectory("cartographer_ros")
