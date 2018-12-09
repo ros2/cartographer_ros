@@ -62,6 +62,8 @@ class Node {
   Node(const Node&) = delete;
   Node& operator=(const Node&) = delete;
 
+  ::rclcpp::Node::SharedPtr node_handle() { return node_handle_; }
+
  private:
   void HandleSubmapList(const cartographer_ros_msgs::msg::SubmapList::SharedPtr msg);
   // void DrawAndPublish(const ::rclcpp::WallTimerEvent& timer_event);
@@ -247,7 +249,7 @@ int main(int argc, char** argv) {
   ::cartographer_ros::Node node(node_handle, FLAGS_resolution, FLAGS_publish_period_sec);
 
   // ::cartographer_ros::Run();
-  ::rclcpp::spin(node_handle);
+  ::rclcpp::spin(node.node_handle());
 
   ::rclcpp::shutdown();
   // ::ros::spin();
