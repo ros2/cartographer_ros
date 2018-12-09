@@ -114,7 +114,7 @@ Node::Node(rclcpp::Node::SharedPtr node_handle, const double resolution, const d
   occupancy_grid_publisher_ = node_handle_->create_publisher<::nav_msgs::msg::OccupancyGrid>(
       kSubmapListTopic, custom_qos_profile);
 
-  occupancy_grid_publisher_timer_ = node_handle_->create_wall_timer(std::chrono::milliseconds(int(publish_period_sec * 1000)), std::bind(&Node::DrawAndPublish, this));
+  occupancy_grid_publisher_timer_ = node_handle_->create_wall_timer(std::chrono::milliseconds(int(publish_period_sec)), std::bind(&Node::DrawAndPublish, this));
                                     // ::ros::WallDuration(publish_period_sec),
                                     // &Node::DrawAndPublish, this))
 }
@@ -125,9 +125,12 @@ void Node::HandleSubmapList(const cartographer_ros_msgs::msg::SubmapList::Shared
 
   // We do not do any work if nobody listens.
   // if (occupancy_grid_publisher_.getNumSubscribers() == 0) {
-  if (node_handle_->count_subscribers(kSubmapListTopic) == 0){
+  if (node_handle_->count_publishers(kSubmapListTopic) == 0){
+    RCLCPP_WARN(node_handle_->get_logger(), "topic(/submap_list) is not found");
     return;
   }
+
+  RCLCPP_INFO(node_handle_->get_logger(), "Subscribe submap list");  
 
   // Keep track of submap IDs that don't appear in the message anymore.
   std::set<SubmapId> submap_ids_to_delete;
@@ -181,8 +184,12 @@ void Node::HandleSubmapList(const cartographer_ros_msgs::msg::SubmapList::Shared
 void Node::DrawAndPublish(void) 
 {
   if (submap_slices_.empty() || last_frame_id_.empty()) 
+  {
+    RCLCPP_WARN(node_handle_->get_logger(), "submap_slices and last_frame_id is empty");  
     return;
+  }
 
+  RCLCPP_INFO(node_handle_->get_logger(), "Publish Occupancy Grid");  
   ::cartographer::common::MutexLocker locker(&mutex_);
   auto painted_slices = PaintSubmapSlices(submap_slices_, resolution_);
   PublishOccupancyGrid(last_frame_id_, last_timestamp_, painted_slices.origin,
