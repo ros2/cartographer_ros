@@ -96,6 +96,7 @@ Node::Node(rclcpp::Node::SharedPtr node_handle, const double resolution, const d
     : node_handle_(node_handle),
       resolution_(resolution)      
 {
+  RCLCPP_INFO(node_handle_->get_logger(), "Node init");  
   rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
 
   custom_qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
@@ -114,7 +115,7 @@ Node::Node(rclcpp::Node::SharedPtr node_handle, const double resolution, const d
   occupancy_grid_publisher_ = node_handle_->create_publisher<::nav_msgs::msg::OccupancyGrid>(
       kSubmapListTopic, custom_qos_profile);
 
-  occupancy_grid_publisher_timer_ = node_handle_->create_wall_timer(std::chrono::milliseconds(int(publish_period_sec)), std::bind(&Node::DrawAndPublish, this));
+  occupancy_grid_publisher_timer_ = node_handle_->create_wall_timer(std::chrono::milliseconds(int(publish_period_sec) * 1000), std::bind(&Node::DrawAndPublish, this));
                                     // ::ros::WallDuration(publish_period_sec),
                                     // &Node::DrawAndPublish, this))
 }
