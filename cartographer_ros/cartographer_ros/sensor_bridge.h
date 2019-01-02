@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef CARTOGRAPHER_ROS_SENSOR_BRIDGE_H_
-#define CARTOGRAPHER_ROS_SENSOR_BRIDGE_H_
+#ifndef CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_SENSOR_BRIDGE_H
+#define CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_SENSOR_BRIDGE_H
 
 #include <memory>
-#include <string>
 
-#include "cartographer/mapping/trajectory_builder.h"
+#include "cartographer/common/optional.h"
+#include "cartographer/mapping/trajectory_builder_interface.h"
 #include "cartographer/sensor/imu_data.h"
 #include "cartographer/sensor/odometry_data.h"
 #include "cartographer/transform/rigid_transform.h"
 #include "cartographer/transform/transform.h"
 #include "cartographer_ros/tf_bridge.h"
-
+#include "cartographer_ros_msgs/msg/landmark_list.hpp"
 #include <geometry_msgs/msg/transform.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <nav_msgs/msg/occupancy_grid.hpp>
@@ -34,6 +34,8 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/multi_echo_laser_scan.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <sensor_msgs/msg/nav_sat_status.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
 namespace cartographer_ros {
@@ -44,17 +46,23 @@ class SensorBridge {
   explicit SensorBridge(
       int num_subdivisions_per_laser_scan, const std::string& tracking_frame,
       double lookup_transform_timeout_sec, tf2_ros::Buffer* tf_buffer,
-      ::cartographer::mapping::TrajectoryBuilder* trajectory_builder);
+      ::cartographer::mapping::TrajectoryBuilderInterface* trajectory_builder);
 
   SensorBridge(const SensorBridge&) = delete;
   SensorBridge& operator=(const SensorBridge&) = delete;
 
   std::unique_ptr<::cartographer::sensor::OdometryData> ToOdometryData(
       const nav_msgs::msg::Odometry::ConstSharedPtr& msg);
-  std::unique_ptr<::cartographer::sensor::ImuData> ToImuData(
-      const sensor_msgs::msg::Imu::ConstSharedPtr& msg);
   void HandleOdometryMessage(const std::string& sensor_id,
                              const nav_msgs::msg::Odometry::ConstSharedPtr& msg);
+  void HandleNavSatFixMessage(const std::string& sensor_id,
+                              const sensor_msgs::msg::NavSatFix::ConstSharedPtr& msg);
+  void HandleLandmarkMessage(
+      const std::string& sensor_id,
+      const cartographer_ros_msgs::msg::LandmarkList::ConstSharedPtr& msg);
+
+  std::unique_ptr<::cartographer::sensor::ImuData> ToImuData(
+      const sensor_msgs::msg::Imu::ConstSharedPtr& msg);
   void HandleImuMessage(const std::string& sensor_id,
                         const sensor_msgs::msg::Imu::ConstSharedPtr& msg);
   void HandleLaserScanMessage(const std::string& sensor_id,
@@ -78,10 +86,14 @@ class SensorBridge {
                          const ::cartographer::sensor::TimedPointCloud& ranges);
 
   const int num_subdivisions_per_laser_scan_;
+  std::map<std::string, cartographer::common::Time> sensor_to_previous_subdivision_time_;
   const TfBridge tf_bridge_;
-  ::cartographer::mapping::TrajectoryBuilder* const trajectory_builder_;
+  ::cartographer::mapping::TrajectoryBuilderInterface* const trajectory_builder_;
+
+  ::cartographer::common::optional<::cartographer::transform::Rigid3d>
+      ecef_to_local_frame_;
 };
 
 }  // namespace cartographer_ros
 
-#endif  // CARTOGRAPHER_ROS_SENSOR_BRIDGE_H_
+#endif  // CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_SENSOR_BRIDGE_H
