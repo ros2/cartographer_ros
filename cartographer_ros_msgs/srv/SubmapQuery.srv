@@ -15,6 +15,6 @@
 int32 trajectory_id
 int32 submap_index
 ---
+cartographer_ros_msgs/StatusResponse status
 int32 submap_version
-SubmapTexture[] textures
-string error_message
+cartographer_ros_msgs/SubmapTexture[] textures

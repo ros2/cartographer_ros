@@ -1,4 +1,4 @@
-# Copyright 2016 The Cartographer Authors
+# Copyright 2018 The Cartographer Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-string laser_scan_topic
-string multi_echo_laser_scan_topic
-string point_cloud2_topic
-string imu_topic
-string odometry_topic
-string nav_sat_fix_topic
-string landmark_topic
+# A common message type to indicate the outcome of a service call.
+uint8 code
+string message

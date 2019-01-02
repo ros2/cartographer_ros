@@ -33,7 +33,11 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 
 set(msg_files
+  "msg/LandmarkEntry.msg"
+  "msg/LandmarkList.msg"
   "msg/SensorTopics.msg"
+  "msg/StatusCode.msg"
+  "msg/StatusResponse.msg"
   "msg/SubmapEntry.msg"
   "msg/SubmapList.msg"
   "msg/SubmapTexture.msg"
