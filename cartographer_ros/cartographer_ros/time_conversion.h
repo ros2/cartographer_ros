@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef CARTOGRAPHER_ROS_TIME_CONVERSION_H_
-#define CARTOGRAPHER_ROS_TIME_CONVERSION_H_
+#ifndef CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_TIME_CONVERSION_H
+#define CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_TIME_CONVERSION_H
 
 #include "cartographer/common/time.h"
 
@@ -29,4 +29,4 @@ builtin_interfaces::msg::Time ToRos(::cartographer::common::Time time);
 
 }  // namespace cartographer_ros
 
-#endif  // CARTOGRAPHER_ROS_TIME_CONVERSION_H_
+#endif  // CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_TIME_CONVERSION_H
