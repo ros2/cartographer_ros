@@ -26,6 +26,7 @@
 #include "cartographer/transform/rigid_transform.h"
 #include "cartographer/transform/transform.h"
 #include "cartographer_ros/tf_bridge.h"
+#include "cartographer_ros/msg_conversion.h"
 #include "cartographer_ros_msgs/msg/landmark_list.hpp"
 #include <geometry_msgs/msg/transform.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
