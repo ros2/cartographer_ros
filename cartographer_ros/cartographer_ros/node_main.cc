@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+#include "cartographer/mapping/map_builder.h"
 #include "cartographer_ros/node.h"
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/ros_log_sink.h"
 #include "gflags/gflags.h"
-#include "cartographer_ros_msgs/srv/finish_trajectory.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/transform_listener.h>
@@ -30,20 +30,25 @@ DEFINE_string(configuration_directory, "",
 DEFINE_string(configuration_basename, "",
               "Basename, i.e. not containing any directory prefix, of the "
               "configuration file.");
-DEFINE_string(map_filename, "", "If non-empty, filename of a map to load.");
+DEFINE_string(load_state_filename, "",
+              "If non-empty, filename of a .pbstream file to load, containing "
+              "a saved SLAM state.");
+DEFINE_bool(load_frozen_state, true,
+            "Load the saved state as frozen (non-optimized) trajectories.");
 DEFINE_bool(
     start_trajectory_with_default_topics, true,
     "Enable to immediately start the first trajectory with default topics.");
 DEFINE_string(
-    save_map_filename, "",
+    save_state_filename, "",
     "If non-empty, serialize state and write it to disk before shutting down.");
+
 
 namespace cartographer_ros {
 namespace {
 
 void Run() {
   auto node_handle = rclcpp::Node::make_shared("cartographer_node");
-  constexpr double kTfBufferCacheTimeInSeconds = 1e6;
+  constexpr double kTfBufferCacheTimeInSeconds = 10.;
   tf2_ros::Buffer tf_buffer(
     node_handle->get_clock(), ::tf2::durationFromSec(kTfBufferCacheTimeInSeconds));
   tf2_ros::TransformListener tf(tf_buffer);
@@ -52,9 +57,13 @@ void Run() {
   std::tie(node_options, trajectory_options) =
       LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
-  Node node(node_options, node_handle, &tf_buffer);
-  if (!FLAGS_map_filename.empty()) {
-    node.LoadMap(FLAGS_map_filename);
+  auto map_builder =
+      cartographer::common::make_unique<cartographer::mapping::MapBuilder>(
+          node_options.map_builder_options);
+
+  Node node(node_options, std::move(map_builder), &tf_buffer);
+  if (!FLAGS_load_state_filename.empty()) {
+    node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
   }
 
   if (FLAGS_start_trajectory_with_default_topics) {
@@ -66,8 +75,8 @@ void Run() {
   node.FinishAllTrajectories();
   node.RunFinalOptimization();
 
-  if (!FLAGS_save_map_filename.empty()) {
-    node.SerializeState(FLAGS_save_map_filename);
+  if (!FLAGS_save_state_filename.empty()) {
+    node.SerializeState(FLAGS_save_state_filename);
   }
 }
 
