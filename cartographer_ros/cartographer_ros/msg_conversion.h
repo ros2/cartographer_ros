@@ -14,28 +14,31 @@
  * limitations under the License.
  */
 
-#ifndef CARTOGRAPHER_ROS_MSG_CONVERSION_H_
-#define CARTOGRAPHER_ROS_MSG_CONVERSION_H_
+#ifndef CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MSG_CONVERSION_H
+#define CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MSG_CONVERSION_H
 
 #include "cartographer/common/port.h"
+#include "cartographer/common/time.h"
+#include "cartographer/io/submap_painter.h"
+#include "cartographer/sensor/landmark_data.h"
 #include "cartographer/sensor/point_cloud.h"
 #include "cartographer/transform/rigid_transform.h"
-
-#include "pcl/point_cloud.h"
-#include "pcl/point_types.h"
-
-#include <pcl_conversions/pcl_conversions.h>
-
+#include "cartographer_ros_msgs/msg/landmark_entry.hpp"
+#include "cartographer_ros_msgs/msg/landmark_list.hpp"
 #include <geometry_msgs/msg/point.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 #include <geometry_msgs/msg/transform.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
-#include <geometry_msgs/msg/vector3.hpp>
-#include <geometry_msgs/msg/quaternion.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp>
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
+#include "pcl_conversions/pcl_conversions.h"
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <sensor_msgs/msg/multi_echo_laser_scan.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+
+#include <builtin_interfaces/msg/time.hpp>
 
 namespace cartographer_ros {
 
@@ -51,14 +54,23 @@ geometry_msgs::msg::Pose ToGeometryMsgPose(
 
 geometry_msgs::msg::Point ToGeometryMsgPoint(const Eigen::Vector3d& vector3d);
 
-::cartographer::sensor::PointCloudWithIntensities ToPointCloudWithIntensities(
-    const sensor_msgs::msg::LaserScan& msg);
+// Converts ROS message to point cloud. Returns the time when the last point
+// was acquired (different from the ROS timestamp). Timing of points is given in
+// the fourth component of each point relative to `Time`.
+std::tuple<::cartographer::sensor::PointCloudWithIntensities,
+           ::cartographer::common::Time> 
+ToPointCloudWithIntensities(const sensor_msgs::msg::LaserScan& msg);
 
-::cartographer::sensor::PointCloudWithIntensities ToPointCloudWithIntensities(
-    const sensor_msgs::msg::MultiEchoLaserScan& msg);
+std::tuple<::cartographer::sensor::PointCloudWithIntensities,
+           ::cartographer::common::Time> 
+ToPointCloudWithIntensities(const sensor_msgs::msg::MultiEchoLaserScan& msg);
 
-::cartographer::sensor::PointCloudWithIntensities ToPointCloudWithIntensities(
-    const sensor_msgs::msg::PointCloud2& message);
+std::tuple<::cartographer::sensor::PointCloudWithIntensities,
+           ::cartographer::common::Time> 
+ToPointCloudWithIntensities(const sensor_msgs::msg::PointCloud2& message);
+
+::cartographer::sensor::LandmarkData ToLandmarkData(
+    const cartographer_ros_msgs::msg::LandmarkList& landmark_list);
 
 ::cartographer::transform::Rigid3d ToRigid3d(
     const geometry_msgs::msg::TransformStamped& transform);
@@ -69,6 +81,22 @@ Eigen::Vector3d ToEigen(const geometry_msgs::msg::Vector3& vector3);
 
 Eigen::Quaterniond ToEigen(const geometry_msgs::msg::Quaternion& quaternion);
 
+// Converts from WGS84 (latitude, longitude, altitude) to ECEF.
+Eigen::Vector3d LatLongAltToEcef(double latitude, double longitude,
+                                 double altitude);
+
+// Returns a transform that takes ECEF coordinates from nearby points to a local
+// frame that has z pointing upwards.
+cartographer::transform::Rigid3d ComputeLocalFrameFromLatLong(double latitude,
+                                                              double longitude);
+
+// Points to an occupancy grid message at a specific resolution from painted
+// submap slices obtained via ::cartographer::io::PaintSubmapSlices(...).
+std::unique_ptr<nav_msgs::msg::OccupancyGrid> CreateOccupancyGridMsg(
+    const cartographer::io::PaintSubmapSlicesResult& painted_slices,
+    const double resolution, const std::string& frame_id,
+    const builtin_interfaces::msg::Time& time);
+
 }  // namespace cartographer_ros
 
-#endif  // CARTOGRAPHER_ROS_MSG_CONVERSION_H_
+#endif  // CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MSG_CONVERSION_H
