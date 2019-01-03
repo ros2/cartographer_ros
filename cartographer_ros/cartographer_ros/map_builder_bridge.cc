@@ -16,15 +16,21 @@
 
 #include "cartographer_ros/map_builder_bridge.h"
 
+#include "cartographer/common/make_unique.h"
 #include "cartographer/io/color.h"
 #include "cartographer/io/proto_stream.h"
+#include "cartographer/mapping/pose_graph.h"
 #include "cartographer_ros/msg_conversion.h"
+#include "cartographer_ros_msgs/msg/status_code.hpp"
+#include "cartographer_ros_msgs/msg/status_response.hpp"
 
 namespace cartographer_ros {
-
 namespace {
 
+using ::cartographer::transform::Rigid3d;
+
 constexpr double kTrajectoryLineStripMarkerScale = 0.07;
+constexpr double kLandmarkMarkerScale = 0.3;
 constexpr double kConstraintMarkerScale = 0.025;
 
 ::std_msgs::msg::ColorRGBA ToMessage(const cartographer::io::FloatColor& color) {
@@ -37,13 +43,12 @@ constexpr double kConstraintMarkerScale = 0.025;
 }
 
 visualization_msgs::msg::Marker CreateTrajectoryMarker(const int trajectory_id,
-                                                       const std::string& frame_id,
-                                                       rclcpp::Clock::SharedPtr& clock) {
+                                                       const std::string& frame_id) {
   visualization_msgs::msg::Marker marker;
   marker.ns = "Trajectory " + std::to_string(trajectory_id);
   marker.id = 0;
   marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
-  marker.header.stamp = clock->now();
+  marker.header.stamp = ::rclcpp::Clock().now();
   marker.header.frame_id = frame_id;
   marker.color = ToMessage(cartographer::io::GetColor(trajectory_id));
   marker.scale.x = kTrajectoryLineStripMarkerScale;
@@ -52,53 +57,76 @@ visualization_msgs::msg::Marker CreateTrajectoryMarker(const int trajectory_id,
   return marker;
 }
 
+int GetLandmarkIndex(
+    const std::string& landmark_id,
+    std::unordered_map<std::string, int>* landmark_id_to_index) {
+  auto it = landmark_id_to_index->find(landmark_id);
+  if (it == landmark_id_to_index->end()) {
+    const int new_index = landmark_id_to_index->size();
+    landmark_id_to_index->emplace(landmark_id, new_index);
+    return new_index;
+  }
+  return it->second;
+}
+
+visualization_msgs::msg::Marker CreateLandmarkMarker(int landmark_index,
+                                                const Rigid3d& landmark_pose,
+                                                const std::string& frame_id) {
+  visualization_msgs::msg::Marker marker;
+  marker.ns = "Landmarks";
+  marker.id = landmark_index;
+  marker.type = visualization_msgs::msg::Marker::CUBE;
+  marker.header.stamp = ::rclcpp::Clock().now();
+  marker.header.frame_id = frame_id;
+  marker.scale.x = kLandmarkMarkerScale;
+  marker.scale.y = kLandmarkMarkerScale;
+  marker.scale.z = kLandmarkMarkerScale;
+  marker.color = ToMessage(cartographer::io::GetColor(landmark_index));
+  marker.pose = ToGeometryMsgPose(landmark_pose);
+  return marker;
+}
+
 void PushAndResetLineMarker(visualization_msgs::msg::Marker* marker,
                             std::vector<visualization_msgs::msg::Marker>* markers) {
-  if (marker->points.size() > 1) {
-    markers->push_back(*marker);
-    ++marker->id;
-  }
+  markers->push_back(*marker);
+  ++marker->id;
   marker->points.clear();
 }
 
 }  // namespace
 
-MapBuilderBridge::MapBuilderBridge(const NodeOptions& node_options,
-                                   tf2_ros::Buffer* const tf_buffer)
+MapBuilderBridge::MapBuilderBridge(
+    const NodeOptions& node_options,
+    std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
+    tf2_ros::Buffer* const tf_buffer)
     : node_options_(node_options),
-      map_builder_(
-          node_options.map_builder_options,
-          cartographer::mapping::MapBuilder::LocalSlamResultCallback(
-              [this](
-                  const int trajectory_id,
-                  const ::cartographer::common::Time time,
-                  const ::cartographer::transform::Rigid3d local_pose,
-                  ::cartographer::sensor::RangeData range_data_in_local,
-                  const std::unique_ptr<const ::cartographer::mapping::NodeId>)
-                  EXCLUDES(mutex_) {
-                    std::shared_ptr<const TrajectoryState::LocalSlamData>
-                        local_slam_data =
-                            std::make_shared<TrajectoryState::LocalSlamData>(
-                                TrajectoryState::LocalSlamData{
-                                    time, local_pose,
-                                    std::move(range_data_in_local)});
-                    cartographer::common::MutexLocker lock(&mutex_);
-                    trajectory_state_data_[trajectory_id] =
-                        std::move(local_slam_data);
-                  })),
+      map_builder_(std::move(map_builder)),
       tf_buffer_(tf_buffer) {}
 
-void MapBuilderBridge::LoadMap(const std::string& map_filename) {
-  LOG(INFO) << "Loading map '" << map_filename << "'...";
-  cartographer::io::ProtoStreamReader stream(map_filename);
-  map_builder_.LoadMap(&stream);
+void MapBuilderBridge::LoadState(const std::string& state_filename,
+                                 bool load_frozen_state) {
+  // Check if suffix of the state file is ".pbstream".
+  const std::string suffix = ".pbstream";
+  CHECK_EQ(state_filename.substr(
+               std::max<int>(state_filename.size() - suffix.size(), 0)),
+           suffix)
+      << "The file containing the state to be loaded must be a "
+         ".pbstream file.";
+  LOG(INFO) << "Loading saved state '" << state_filename << "'...";
+  cartographer::io::ProtoStreamReader stream(state_filename);
+  map_builder_->LoadState(&stream, load_frozen_state);
 }
 
 int MapBuilderBridge::AddTrajectory(
-    const std::unordered_set<std::string>& expected_sensor_ids,
+    const std::set<cartographer::mapping::TrajectoryBuilderInterface::SensorId>&
+        expected_sensor_ids,
     const TrajectoryOptions& trajectory_options) {
-  const int trajectory_id = map_builder_.AddTrajectoryBuilder(
-      expected_sensor_ids, trajectory_options.trajectory_builder_options);
+  const int trajectory_id = map_builder_->AddTrajectoryBuilder(
+      expected_sensor_ids, trajectory_options.trajectory_builder_options,
+      ::std::bind(&MapBuilderBridge::OnLocalSlamResult, this,
+                  ::std::placeholders::_1, ::std::placeholders::_2,
+                  ::std::placeholders::_3, ::std::placeholders::_4,
+                  ::std::placeholders::_5));
   LOG(INFO) << "Added trajectory with ID '" << trajectory_id << "'.";
 
   // Make sure there is no trajectory with 'trajectory_id' yet.
@@ -108,7 +136,7 @@ int MapBuilderBridge::AddTrajectory(
           trajectory_options.num_subdivisions_per_laser_scan,
           trajectory_options.tracking_frame,
           node_options_.lookup_transform_timeout_sec, tf_buffer_,
-          map_builder_.GetTrajectoryBuilder(trajectory_id));
+          map_builder_->GetTrajectoryBuilder(trajectory_id));
   auto emplace_result =
       trajectory_options_.emplace(trajectory_id, trajectory_options);
   CHECK(emplace_result.second == true);
@@ -120,19 +148,19 @@ void MapBuilderBridge::FinishTrajectory(const int trajectory_id) {
 
   // Make sure there is a trajectory with 'trajectory_id'.
   CHECK_EQ(sensor_bridges_.count(trajectory_id), 1);
-  map_builder_.FinishTrajectory(trajectory_id);
+  map_builder_->FinishTrajectory(trajectory_id);
   sensor_bridges_.erase(trajectory_id);
 }
 
 void MapBuilderBridge::RunFinalOptimization() {
   LOG(INFO) << "Running final trajectory optimization...";
-  map_builder_.pose_graph()->RunFinalOptimization();
+  map_builder_->pose_graph()->RunFinalOptimization();
 }
 
-void MapBuilderBridge::SerializeState(const std::string& filename) {
+bool MapBuilderBridge::SerializeState(const std::string& filename) {
   cartographer::io::ProtoStreamWriter writer(filename);
-  map_builder_.SerializeState(&writer);
-  CHECK(writer.Close()) << "Could not write state.";
+  map_builder_->SerializeState(&writer);
+  return writer.Close();
 }
 
 bool MapBuilderBridge::HandleSubmapQuery(
@@ -142,14 +170,13 @@ bool MapBuilderBridge::HandleSubmapQuery(
   cartographer::mapping::SubmapId submap_id{request->trajectory_id,
                                             request->submap_index};
   const std::string error =
-      map_builder_.SubmapToProto(submap_id, &response_proto);
+      map_builder_->SubmapToProto(submap_id, &response_proto);
   if (!error.empty()) {
     LOG(ERROR) << error;
+    response->status.code = cartographer_ros_msgs::msg::StatusCode::NOT_FOUND;
+    response->status.message = error;
     return false;
   }
-
-  CHECK(response_proto.textures_size() > 0)
-      << "empty textures given for submap: " << submap_id;
 
   response->submap_version = response_proto.submap_version();
   for (const auto& texture_proto : response_proto.textures()) {
@@ -163,15 +190,29 @@ bool MapBuilderBridge::HandleSubmapQuery(
     texture.slice_pose = ToGeometryMsgPose(
         cartographer::transform::ToRigid3(texture_proto.slice_pose()));
   }
+  response->status.message = "Success.";
+  response->status.code = cartographer_ros_msgs::msg::StatusCode::OK;
+   
   return true;
 }
 
-cartographer_ros_msgs::msg::SubmapList MapBuilderBridge::GetSubmapList(rclcpp::Clock::SharedPtr& clock) {
+std::set<int> MapBuilderBridge::GetFrozenTrajectoryIds() {
+  std::set<int> frozen_trajectory_ids;
+  const auto node_poses = map_builder_->pose_graph()->GetTrajectoryNodePoses();
+  for (const int trajectory_id : node_poses.trajectory_ids()) {
+    if (map_builder_->pose_graph()->IsTrajectoryFrozen(trajectory_id)) {
+      frozen_trajectory_ids.insert(trajectory_id);
+    }
+  }
+  return frozen_trajectory_ids;
+}
+
+cartographer_ros_msgs::msg::SubmapList MapBuilderBridge::GetSubmapList() {
   cartographer_ros_msgs::msg::SubmapList submap_list;
-  submap_list.header.stamp = clock->now();
+  submap_list.header.stamp = ::rclcpp::Clock().now();
   submap_list.header.frame_id = node_options_.map_frame;
   for (const auto& submap_id_data :
-       map_builder_.pose_graph()->GetAllSubmapData()) {
+       map_builder_->pose_graph()->GetAllSubmapData()) {
     cartographer_ros_msgs::msg::SubmapEntry submap_entry;
     submap_entry.trajectory_id = submap_id_data.id.trajectory_id;
     submap_entry.submap_index = submap_id_data.id.submap_index;
@@ -202,7 +243,7 @@ MapBuilderBridge::GetTrajectoryStates() {
     CHECK_EQ(trajectory_options_.count(trajectory_id), 1);
     trajectory_states[trajectory_id] = {
         local_slam_data,
-        map_builder_.pose_graph()->GetLocalToGlobalTransform(trajectory_id),
+        map_builder_->pose_graph()->GetLocalToGlobalTransform(trajectory_id),
         sensor_bridge.tf_bridge().LookupToTracking(
             local_slam_data->time,
             trajectory_options_[trajectory_id].published_frame),
@@ -211,21 +252,81 @@ MapBuilderBridge::GetTrajectoryStates() {
   return trajectory_states;
 }
 
-visualization_msgs::msg::MarkerArray MapBuilderBridge::GetTrajectoryNodeList(rclcpp::Clock::SharedPtr& clock) {
+visualization_msgs::msg::MarkerArray MapBuilderBridge::GetTrajectoryNodeList() {
   visualization_msgs::msg::MarkerArray trajectory_node_list;
-  const auto nodes = map_builder_.pose_graph()->GetTrajectoryNodes();
-  for (const int trajectory_id : nodes.trajectory_ids()) {
-    visualization_msgs::msg::Marker marker =
-        CreateTrajectoryMarker(trajectory_id, node_options_.map_frame, clock);
+  const auto node_poses = map_builder_->pose_graph()->GetTrajectoryNodePoses();
+  // Find the last node indices for each trajectory that have either
+  // inter-submap or inter-trajectory constraints.
+  std::map<int, int /* node_index */>
+      trajectory_to_last_inter_submap_constrained_node;
+  std::map<int, int /* node_index */>
+      trajectory_to_last_inter_trajectory_constrained_node;
+  for (const int trajectory_id : node_poses.trajectory_ids()) {
+    trajectory_to_last_inter_submap_constrained_node[trajectory_id] = 0;
+    trajectory_to_last_inter_trajectory_constrained_node[trajectory_id] = 0;
+  }
+  const auto constraints = map_builder_->pose_graph()->constraints();
+  for (const auto& constraint : constraints) {
+    if (constraint.tag ==
+        cartographer::mapping::PoseGraph::Constraint::INTER_SUBMAP) {
+      if (constraint.node_id.trajectory_id ==
+          constraint.submap_id.trajectory_id) {
+        trajectory_to_last_inter_submap_constrained_node[constraint.node_id
+                                                             .trajectory_id] =
+            std::max(trajectory_to_last_inter_submap_constrained_node.at(
+                         constraint.node_id.trajectory_id),
+                     constraint.node_id.node_index);
+      } else {
+        trajectory_to_last_inter_trajectory_constrained_node
+            [constraint.node_id.trajectory_id] =
+                std::max(trajectory_to_last_inter_submap_constrained_node.at(
+                             constraint.node_id.trajectory_id),
+                         constraint.node_id.node_index);
+      }
+    }
+  }
 
-    for (const auto& node_id_data : nodes.trajectory(trajectory_id)) {
-      if (node_id_data.data.constant_data == nullptr) {
+  for (const int trajectory_id : node_poses.trajectory_ids()) {
+    visualization_msgs::msg::Marker marker =
+        CreateTrajectoryMarker(trajectory_id, node_options_.map_frame);
+    int last_inter_submap_constrained_node = std::max(
+        node_poses.trajectory(trajectory_id).begin()->id.node_index,
+        trajectory_to_last_inter_submap_constrained_node.at(trajectory_id));
+    int last_inter_trajectory_constrained_node = std::max(
+        node_poses.trajectory(trajectory_id).begin()->id.node_index,
+        trajectory_to_last_inter_trajectory_constrained_node.at(trajectory_id));
+    last_inter_submap_constrained_node =
+        std::max(last_inter_submap_constrained_node,
+                 last_inter_trajectory_constrained_node);
+
+    if (map_builder_->pose_graph()->IsTrajectoryFrozen(trajectory_id)) {
+      last_inter_submap_constrained_node =
+          (--node_poses.trajectory(trajectory_id).end())->id.node_index;
+      last_inter_trajectory_constrained_node =
+          last_inter_submap_constrained_node;
+    }
+
+    marker.color.a = 1.0;
+    for (const auto& node_id_data : node_poses.trajectory(trajectory_id)) {
+      if (!node_id_data.data.constant_pose_data.has_value()) {
         PushAndResetLineMarker(&marker, &trajectory_node_list.markers);
         continue;
       }
       const ::geometry_msgs::msg::Point node_point =
           ToGeometryMsgPoint(node_id_data.data.global_pose.translation());
       marker.points.push_back(node_point);
+
+      if (node_id_data.id.node_index ==
+          last_inter_trajectory_constrained_node) {
+        PushAndResetLineMarker(&marker, &trajectory_node_list.markers);
+        marker.points.push_back(node_point);
+        marker.color.a = 0.5;
+      }
+      if (node_id_data.id.node_index == last_inter_submap_constrained_node) {
+        PushAndResetLineMarker(&marker, &trajectory_node_list.markers);
+        marker.points.push_back(node_point);
+        marker.color.a = 0.25;
+      }
       // Work around the 16384 point limit in RViz by splitting the
       // trajectory into multiple markers.
       if (marker.points.size() == 16384) {
@@ -235,18 +336,42 @@ visualization_msgs::msg::MarkerArray MapBuilderBridge::GetTrajectoryNodeList(rcl
       }
     }
     PushAndResetLineMarker(&marker, &trajectory_node_list.markers);
+    size_t current_last_marker_id = static_cast<size_t>(marker.id - 1);
+    if (trajectory_to_highest_marker_id_.count(trajectory_id) == 0) {
+      trajectory_to_highest_marker_id_[trajectory_id] = current_last_marker_id;
+    } else {
+      marker.action = visualization_msgs::msg::Marker::DELETE;
+      while (static_cast<size_t>(marker.id) <=
+             trajectory_to_highest_marker_id_[trajectory_id]) {
+        trajectory_node_list.markers.push_back(marker);
+        ++marker.id;
+      }
+      trajectory_to_highest_marker_id_[trajectory_id] = current_last_marker_id;
+    }
   }
   return trajectory_node_list;
 }
 
-visualization_msgs::msg::MarkerArray MapBuilderBridge::GetConstraintList(rclcpp::Clock::SharedPtr& clock) {
+visualization_msgs::msg::MarkerArray MapBuilderBridge::GetLandmarkPosesList() {
+  visualization_msgs::msg::MarkerArray landmark_poses_list;
+  const std::map<std::string, Rigid3d> landmark_poses =
+      map_builder_->pose_graph()->GetLandmarkPoses();
+  for (const auto& id_to_pose : landmark_poses) {
+    landmark_poses_list.markers.push_back(CreateLandmarkMarker(
+        GetLandmarkIndex(id_to_pose.first, &landmark_to_index_),
+        id_to_pose.second, node_options_.map_frame));
+  }
+  return landmark_poses_list;
+}
+
+visualization_msgs::msg::MarkerArray MapBuilderBridge::GetConstraintList() {
   visualization_msgs::msg::MarkerArray constraint_list;
   int marker_id = 0;
   visualization_msgs::msg::Marker constraint_intra_marker;
   constraint_intra_marker.id = marker_id++;
   constraint_intra_marker.ns = "Intra constraints";
   constraint_intra_marker.type = visualization_msgs::msg::Marker::LINE_LIST;
-  constraint_intra_marker.header.stamp = clock->now();
+  constraint_intra_marker.header.stamp = ::rclcpp::Clock().now();
   constraint_intra_marker.header.frame_id = node_options_.map_frame;
   constraint_intra_marker.scale.x = kConstraintMarkerScale;
   constraint_intra_marker.pose.orientation.w = 1.0;
@@ -259,19 +384,37 @@ visualization_msgs::msg::MarkerArray MapBuilderBridge::GetConstraintList(rclcpp:
   // visible.
   residual_intra_marker.pose.position.z = 0.1;
 
-  visualization_msgs::msg::Marker constraint_inter_marker = constraint_intra_marker;
-  constraint_inter_marker.id = marker_id++;
-  constraint_inter_marker.ns = "Inter constraints";
-  constraint_inter_marker.pose.position.z = 0.1;
+  visualization_msgs::msg::Marker constraint_inter_same_trajectory_marker =
+      constraint_intra_marker;
+  constraint_inter_same_trajectory_marker.id = marker_id++;
+  constraint_inter_same_trajectory_marker.ns =
+      "Inter constraints, same trajectory";
+  constraint_inter_same_trajectory_marker.pose.position.z = 0.1;
 
-  visualization_msgs::msg::Marker residual_inter_marker = constraint_intra_marker;
-  residual_inter_marker.id = marker_id++;
-  residual_inter_marker.ns = "Inter residuals";
-  residual_inter_marker.pose.position.z = 0.1;
+  visualization_msgs::msg::Marker residual_inter_same_trajectory_marker =
+      constraint_intra_marker;
+  residual_inter_same_trajectory_marker.id = marker_id++;
+  residual_inter_same_trajectory_marker.ns = "Inter residuals, same trajectory";
+  residual_inter_same_trajectory_marker.pose.position.z = 0.1;
 
-  const auto trajectory_nodes = map_builder_.pose_graph()->GetTrajectoryNodes();
-  const auto submap_data = map_builder_.pose_graph()->GetAllSubmapData();
-  const auto constraints = map_builder_.pose_graph()->constraints();
+  visualization_msgs::msg::Marker constraint_inter_diff_trajectory_marker =
+      constraint_intra_marker;
+  constraint_inter_diff_trajectory_marker.id = marker_id++;
+  constraint_inter_diff_trajectory_marker.ns =
+      "Inter constraints, different trajectories";
+  constraint_inter_diff_trajectory_marker.pose.position.z = 0.1;
+
+  visualization_msgs::msg::Marker residual_inter_diff_trajectory_marker =
+      constraint_intra_marker;
+  residual_inter_diff_trajectory_marker.id = marker_id++;
+  residual_inter_diff_trajectory_marker.ns =
+      "Inter residuals, different trajectories";
+  residual_inter_diff_trajectory_marker.pose.position.z = 0.1;
+
+  const auto trajectory_node_poses =
+      map_builder_->pose_graph()->GetTrajectoryNodePoses();
+  const auto submap_poses = map_builder_->pose_graph()->GetAllSubmapPoses();
+  const auto constraints = map_builder_->pose_graph()->constraints();
 
   for (const auto& constraint : constraints) {
     visualization_msgs::msg::Marker *constraint_marker, *residual_marker;
@@ -289,11 +432,21 @@ visualization_msgs::msg::MarkerArray MapBuilderBridge::GetConstraintList(rclcpp:
       color_residual.a = 1.0;
       color_residual.r = 1.0;
     } else {
-      constraint_marker = &constraint_inter_marker;
-      residual_marker = &residual_inter_marker;
-      // Bright yellow
-      color_constraint.a = 1.0;
-      color_constraint.r = color_constraint.g = 1.0;
+      if (constraint.node_id.trajectory_id ==
+          constraint.submap_id.trajectory_id) {
+        constraint_marker = &constraint_inter_same_trajectory_marker;
+        residual_marker = &residual_inter_same_trajectory_marker;
+        // Bright yellow
+        color_constraint.a = 1.0;
+        color_constraint.r = color_constraint.g = 1.0;
+      } else {
+        constraint_marker = &constraint_inter_diff_trajectory_marker;
+        residual_marker = &residual_inter_diff_trajectory_marker;
+        // Bright orange
+        color_constraint.a = 1.0;
+        color_constraint.r = 1.0;
+        color_constraint.g = 165. / 255.;
+      }
       // Bright cyan
       color_residual.a = 1.0;
       color_residual.b = color_residual.g = 1.0;
@@ -304,18 +457,17 @@ visualization_msgs::msg::MarkerArray MapBuilderBridge::GetConstraintList(rclcpp:
       residual_marker->colors.push_back(color_residual);
     }
 
-    const auto submap_it = submap_data.find(constraint.submap_id);
-    if (submap_it == submap_data.end()) {
+    const auto submap_it = submap_poses.find(constraint.submap_id);
+    if (submap_it == submap_poses.end()) {
       continue;
     }
     const auto& submap_pose = submap_it->data.pose;
-    const auto node_it = trajectory_nodes.find(constraint.node_id);
-    if (node_it == trajectory_nodes.end()) {
+    const auto node_it = trajectory_node_poses.find(constraint.node_id);
+    if (node_it == trajectory_node_poses.end()) {
       continue;
     }
     const auto& trajectory_node_pose = node_it->data.global_pose;
-    const cartographer::transform::Rigid3d constraint_pose =
-        submap_pose * constraint.pose.zbar_ij;
+    const Rigid3d constraint_pose = submap_pose * constraint.pose.zbar_ij;
 
     constraint_marker->points.push_back(
         ToGeometryMsgPoint(submap_pose.translation()));
@@ -330,13 +482,29 @@ visualization_msgs::msg::MarkerArray MapBuilderBridge::GetConstraintList(rclcpp:
 
   constraint_list.markers.push_back(constraint_intra_marker);
   constraint_list.markers.push_back(residual_intra_marker);
-  constraint_list.markers.push_back(constraint_inter_marker);
-  constraint_list.markers.push_back(residual_inter_marker);
+  constraint_list.markers.push_back(constraint_inter_same_trajectory_marker);
+  constraint_list.markers.push_back(residual_inter_same_trajectory_marker);
+  constraint_list.markers.push_back(constraint_inter_diff_trajectory_marker);
+  constraint_list.markers.push_back(residual_inter_diff_trajectory_marker);
   return constraint_list;
 }
 
 SensorBridge* MapBuilderBridge::sensor_bridge(const int trajectory_id) {
   return sensor_bridges_.at(trajectory_id).get();
+}
+
+void MapBuilderBridge::OnLocalSlamResult(
+    const int trajectory_id, const ::cartographer::common::Time time,
+    const Rigid3d local_pose,
+    ::cartographer::sensor::RangeData range_data_in_local,
+    const std::unique_ptr<const ::cartographer::mapping::
+                              TrajectoryBuilderInterface::InsertionResult>) {
+  std::shared_ptr<const TrajectoryState::LocalSlamData> local_slam_data =
+      std::make_shared<TrajectoryState::LocalSlamData>(
+          TrajectoryState::LocalSlamData{time, local_pose,
+                                         std::move(range_data_in_local)});
+  cartographer::common::MutexLocker lock(&mutex_);
+  trajectory_state_data_[trajectory_id] = std::move(local_slam_data);
 }
 
 }  // namespace cartographer_ros

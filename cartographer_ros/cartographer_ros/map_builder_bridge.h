@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef CARTOGRAPHER_ROS_MAP_BUILDER_BRIDGE_H_
-#define CARTOGRAPHER_ROS_MAP_BUILDER_BRIDGE_H_
+#ifndef CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MAP_BUILDER_BRIDGE_H
+#define CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MAP_BUILDER_BRIDGE_H
 
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 
-#include "cartographer/mapping/map_builder.h"
+#include "cartographer/common/mutex.h"
+#include "cartographer/mapping/map_builder_interface.h"
 #include "cartographer/mapping/proto/trajectory_builder_options.pb.h"
+#include "cartographer/mapping/trajectory_builder_interface.h"
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/sensor_bridge.h"
 #include "cartographer_ros/tf_bridge.h"
@@ -31,15 +33,10 @@
 #include "cartographer_ros_msgs/msg/submap_entry.hpp"
 #include "cartographer_ros_msgs/msg/submap_list.hpp"
 #include "cartographer_ros_msgs/srv/submap_query.hpp"
-
 #include <nav_msgs/msg/occupancy_grid.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
-#include "visualization_msgs/msg/marker_array.hpp"
-
-#include <rclcpp/clock.hpp>
-#include <rclcpp/rclcpp.hpp>
-#include <rclcpp/time.hpp>
-#include <rclcpp/time_source.hpp>
+#include "rclcpp/clock.hpp"
 
 namespace cartographer_ros {
 
@@ -60,43 +57,62 @@ class MapBuilderBridge {
     TrajectoryOptions trajectory_options;
   };
 
-  MapBuilderBridge(const NodeOptions& node_options, tf2_ros::Buffer* tf_buffer);
+  MapBuilderBridge(
+      const NodeOptions& node_options,
+      std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
+      tf2_ros::Buffer* tf_buffer);
 
   MapBuilderBridge(const MapBuilderBridge&) = delete;
   MapBuilderBridge& operator=(const MapBuilderBridge&) = delete;
 
-  void LoadMap(const std::string& map_filename);
-  int AddTrajectory(const std::unordered_set<std::string>& expected_sensor_ids,
-                    const TrajectoryOptions& trajectory_options);
+  void LoadState(const std::string& state_filename, bool load_frozen_state);
+  int AddTrajectory(
+      const std::set<
+          ::cartographer::mapping::TrajectoryBuilderInterface::SensorId>&
+          expected_sensor_ids,
+      const TrajectoryOptions& trajectory_options);
   void FinishTrajectory(int trajectory_id);
   void RunFinalOptimization();
-  void SerializeState(const std::string& filename);
+  bool SerializeState(const std::string& filename);
 
   bool HandleSubmapQuery(
       const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
       std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response);
 
-  cartographer_ros_msgs::msg::SubmapList GetSubmapList(rclcpp::Clock::SharedPtr& clock);
+  std::set<int> GetFrozenTrajectoryIds(); 
+  cartographer_ros_msgs::msg::SubmapList GetSubmapList();
   std::unordered_map<int, TrajectoryState> GetTrajectoryStates()
       EXCLUDES(mutex_);
-  visualization_msgs::msg::MarkerArray GetTrajectoryNodeList(rclcpp::Clock::SharedPtr& clock);
-  visualization_msgs::msg::MarkerArray GetConstraintList(rclcpp::Clock::SharedPtr& clock);
+  visualization_msgs::msg::MarkerArray GetTrajectoryNodeList();
+  visualization_msgs::msg::MarkerArray GetLandmarkPosesList();
+  visualization_msgs::msg::MarkerArray GetConstraintList();
 
   SensorBridge* sensor_bridge(int trajectory_id);
 
  private:
+  void OnLocalSlamResult(
+      const int trajectory_id, const ::cartographer::common::Time time,
+      const ::cartographer::transform::Rigid3d local_pose,
+      ::cartographer::sensor::RangeData range_data_in_local,
+      const std::unique_ptr<const ::cartographer::mapping::
+                                TrajectoryBuilderInterface::InsertionResult>
+          insertion_result) EXCLUDES(mutex_);
+
   cartographer::common::Mutex mutex_;
   const NodeOptions node_options_;
   std::unordered_map<int, std::shared_ptr<const TrajectoryState::LocalSlamData>>
       trajectory_state_data_ GUARDED_BY(mutex_);
-  cartographer::mapping::MapBuilder map_builder_;
+  std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder_;
   tf2_ros::Buffer* const tf_buffer_;
+
+  std::unordered_map<std::string /* landmark ID */, int> landmark_to_index_;
 
   // These are keyed with 'trajectory_id'.
   std::unordered_map<int, TrajectoryOptions> trajectory_options_;
   std::unordered_map<int, std::unique_ptr<SensorBridge>> sensor_bridges_;
+  std::unordered_map<int, size_t> trajectory_to_highest_marker_id_;
 };
 
 }  // namespace cartographer_ros
 
-#endif  // CARTOGRAPHER_ROS_MAP_BUILDER_BRIDGE_H_
+#endif  // CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MAP_BUILDER_BRIDGE_H
