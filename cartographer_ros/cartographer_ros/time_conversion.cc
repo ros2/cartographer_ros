@@ -17,8 +17,6 @@
 #include "cartographer_ros/time_conversion.h"
 
 #include "cartographer/common/time.h"
-
-#include <rclcpp/rclcpp.hpp>
 #include <builtin_interfaces/msg/time.hpp>
 
 namespace cartographer_ros {
