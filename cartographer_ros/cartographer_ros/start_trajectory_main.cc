@@ -25,6 +25,7 @@
 #include "cartographer_ros/ros_log_sink.h"
 #include "cartographer_ros/trajectory_options.h"
 #include "cartographer_ros_msgs/StartTrajectory.h"
+#include "cartographer_ros_msgs/StatusCode.h"
 #include "cartographer_ros_msgs/TrajectoryOptions.h"
 #include "gflags/gflags.h"
 #include "ros/ros.h"
@@ -36,6 +37,8 @@ DEFINE_string(configuration_directory, "",
 DEFINE_string(configuration_basename, "",
               "Basename, i.e. not containing any directory prefix, of the "
               "configuration file.");
+
+DEFINE_string(initial_pose, "", "Starting pose of a new trajectory");
 
 namespace cartographer_ros {
 namespace {
@@ -49,7 +52,20 @@ TrajectoryOptions LoadOptions() {
   auto lua_parameter_dictionary =
       cartographer::common::LuaParameterDictionary::NonReferenceCounted(
           code, std::move(file_resolver));
-  return CreateTrajectoryOptions(lua_parameter_dictionary.get());
+  if (!FLAGS_initial_pose.empty()) {
+    auto initial_trajectory_pose_file_resolver =
+        cartographer::common::make_unique<
+            cartographer::common::ConfigurationFileResolver>(
+            std::vector<std::string>{FLAGS_configuration_directory});
+    auto initial_trajectory_pose =
+        cartographer::common::LuaParameterDictionary::NonReferenceCounted(
+            "return " + FLAGS_initial_pose,
+            std::move(initial_trajectory_pose_file_resolver));
+    return CreateTrajectoryOptions(lua_parameter_dictionary.get(),
+                                   initial_trajectory_pose.get());
+  } else {
+    return CreateTrajectoryOptions(lua_parameter_dictionary.get());
+  }
 }
 
 bool Run() {
@@ -70,7 +86,14 @@ bool Run() {
       node_handle.resolveName(kOdometryTopic, true);
 
   if (!client.call(srv)) {
-    LOG(ERROR) << "Error starting trajectory.";
+    LOG(ERROR) << "Failed to call " << kStartTrajectoryServiceName << ".";
+    return false;
+  }
+  if (srv.response.status.code != cartographer_ros_msgs::StatusCode::OK) {
+    LOG(ERROR) << "Error starting trajectory - message: '"
+               << srv.response.status.message
+               << "' (status code: " << std::to_string(srv.response.status.code)
+               << ").";
     return false;
   }
   LOG(INFO) << "Started trajectory " << srv.response.trajectory_id;

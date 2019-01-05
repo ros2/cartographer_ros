@@ -18,14 +18,15 @@
 #include <string>
 
 #include "cartographer/io/proto_stream.h"
+#include "cartographer/io/proto_stream_deserializer.h"
 #include "cartographer/io/submap_painter.h"
+#include "cartographer/mapping/2d/probability_grid.h"
+#include "cartographer/mapping/2d/submap_2d.h"
+#include "cartographer/mapping/3d/submap_3d.h"
 #include "cartographer/mapping/proto/pose_graph.pb.h"
 #include "cartographer/mapping/proto/serialization.pb.h"
 #include "cartographer/mapping/proto/submap.pb.h"
-#include "cartographer/mapping/submaps.h"
-#include "cartographer/mapping_2d/probability_grid.h"
-#include "cartographer/mapping_2d/submaps.h"
-#include "cartographer/mapping_3d/submaps.h"
+#include "cartographer/mapping/proto/trajectory_builder_options.pb.h"
 #include "cartographer_ros/ros_map.h"
 #include "cartographer_ros/submap.h"
 #include "gflags/gflags.h"
@@ -39,51 +40,18 @@ DEFINE_double(resolution, 0.05, "Resolution of a grid cell in the drawn map.");
 namespace cartographer_ros {
 namespace {
 
-void FillSubmapSlice(
-    const ::cartographer::transform::Rigid3d& global_submap_pose,
-    const ::cartographer::mapping::proto::Submap& proto,
-    ::cartographer::io::SubmapSlice* const submap_slice) {
-  ::cartographer::mapping::proto::SubmapQuery::Response response;
-  ::cartographer::transform::Rigid3d local_pose;
-  if (proto.has_submap_3d()) {
-    ::cartographer::mapping_3d::Submap submap(proto.submap_3d());
-    local_pose = submap.local_pose();
-    submap.ToResponseProto(global_submap_pose, &response);
-  } else {
-    ::cartographer::mapping_2d::Submap submap(proto.submap_2d());
-    local_pose = submap.local_pose();
-    submap.ToResponseProto(global_submap_pose, &response);
-  }
-  submap_slice->pose = global_submap_pose;
-
-  auto& texture_proto = response.textures(0);
-  const SubmapTexture::Pixels pixels = UnpackTextureData(
-      texture_proto.cells(), texture_proto.width(), texture_proto.height());
-  submap_slice->width = texture_proto.width();
-  submap_slice->height = texture_proto.height();
-  submap_slice->resolution = texture_proto.resolution();
-  submap_slice->slice_pose =
-      ::cartographer::transform::ToRigid3(texture_proto.slice_pose());
-  submap_slice->surface =
-      DrawTexture(pixels.intensity, pixels.alpha, texture_proto.width(),
-                  texture_proto.height(), &submap_slice->cairo_data);
-}
-
 void Run(const std::string& pbstream_filename, const std::string& map_filestem,
          const double resolution) {
   ::cartographer::io::ProtoStreamReader reader(pbstream_filename);
+  ::cartographer::io::ProtoStreamDeserializer deserializer(&reader);
 
-  ::cartographer::mapping::proto::PoseGraph pose_graph;
-  CHECK(reader.ReadProto(&pose_graph));
+  const auto& pose_graph = deserializer.pose_graph();
 
   LOG(INFO) << "Loading submap slices from serialized data.";
   std::map<::cartographer::mapping::SubmapId, ::cartographer::io::SubmapSlice>
       submap_slices;
-  for (;;) {
-    ::cartographer::mapping::proto::SerializedData proto;
-    if (!reader.ReadProto(&proto)) {
-      break;
-    }
+  ::cartographer::mapping::proto::SerializedData proto;
+  while (deserializer.ReadNextSerializedData(&proto)) {
     if (proto.has_submap()) {
       const auto& submap = proto.submap();
       const ::cartographer::mapping::SubmapId id{

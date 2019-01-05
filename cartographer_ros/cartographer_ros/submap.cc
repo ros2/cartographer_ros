@@ -20,24 +20,28 @@
 #include "cartographer/common/port.h"
 #include "cartographer/transform/transform.h"
 #include "cartographer_ros/msg_conversion.h"
-#include "cartographer_ros_msgs/msg/status_code.hpp"
-#include "cartographer_ros_msgs/srv/submap_query.hpp"
+#include "cartographer_ros_msgs/StatusCode.h"
+#include "cartographer_ros_msgs/SubmapQuery.h"
 
 namespace cartographer_ros {
 
 std::unique_ptr<::cartographer::io::SubmapTextures> FetchSubmapTextures(
     const ::cartographer::mapping::SubmapId& submap_id,
-    ::rclcpp::Client<::cartographer_ros_msgs::srv::SubmapQuery>::SharedPtr client){
-  auto srv_request = std::make_shared<cartographer_ros_msgs::srv::SubmapQuery::Request>();
-  srv_request->trajectory_id = submap_id.trajectory_id;
-  srv_request->submap_index = submap_id.submap_index;
-
-  auto result = client->async_send_request(srv_request);
-  auto srv_response = result.get();
-
-  auto response = ::cartographer::common::make_unique<::cartographer::io::SubmapTextures>();
-  response->version = srv_response->submap_version;
-  for (const auto& texture : srv_response->textures) {
+    ros::ServiceClient* client) {
+  ::cartographer_ros_msgs::SubmapQuery srv;
+  srv.request.trajectory_id = submap_id.trajectory_id;
+  srv.request.submap_index = submap_id.submap_index;
+  if (!client->call(srv) ||
+      srv.response.status.code != ::cartographer_ros_msgs::StatusCode::OK) {
+    return nullptr;
+  }
+  if (srv.response.textures.empty()) {
+    return nullptr;
+  }
+  auto response =
+      ::cartographer::common::make_unique<::cartographer::io::SubmapTextures>();
+  response->version = srv.response.submap_version;
+  for (const auto& texture : srv.response.textures) {
     const std::string compressed_cells(texture.cells.begin(),
                                        texture.cells.end());
     response->textures.emplace_back(::cartographer::io::SubmapTexture{

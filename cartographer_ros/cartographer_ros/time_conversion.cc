@@ -17,32 +17,31 @@
 #include "cartographer_ros/time_conversion.h"
 
 #include "cartographer/common/time.h"
-#include <builtin_interfaces/msg/time.hpp>
+#include "ros/ros.h"
 
 namespace cartographer_ros {
 
-builtin_interfaces::msg::Time ToRos(::cartographer::common::Time time) {
+::ros::Time ToRos(::cartographer::common::Time time) {
   int64_t uts_timestamp = ::cartographer::common::ToUniversal(time);
   int64_t ns_since_unix_epoch =
       (uts_timestamp -
        ::cartographer::common::kUtsEpochOffsetFromUnixEpochInSeconds *
            10000000ll) *
       100ll;
-  builtin_interfaces::msg::Time ros_time;
-  ros_time.sec = static_cast<builtin_interfaces::msg::Time::_sec_type>(ns_since_unix_epoch / 1000000000);
-  ros_time.nanosec = ns_since_unix_epoch % 1000000000;
+  ::ros::Time ros_time;
+  ros_time.fromNSec(ns_since_unix_epoch);
   return ros_time;
 }
 
 // TODO(pedrofernandez): Write test.
-::cartographer::common::Time FromRos(const builtin_interfaces::msg::Time& time) {
+::cartographer::common::Time FromRos(const ::ros::Time& time) {
   // The epoch of the ICU Universal Time Scale is "0001-01-01 00:00:00.0 +0000",
   // exactly 719162 days before the Unix epoch.
   return ::cartographer::common::FromUniversal(
       (time.sec +
        ::cartographer::common::kUtsEpochOffsetFromUnixEpochInSeconds) *
           10000000ll +
-      (time.nanosec + 50) / 100);  // + 50 to get the rounding correct.
+      (time.nsec + 50) / 100);  // + 50 to get the rounding correct.
 }
 
 }  // namespace cartographer_ros

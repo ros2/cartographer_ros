@@ -25,6 +25,7 @@
 #include "OgreSceneManager.h"
 #include "OgreSceneNode.h"
 #include "cartographer/common/mutex.h"
+#include "cartographer/io/submap_painter.h"
 #include "cartographer/mapping/id.h"
 #include "cartographer/transform/rigid_transform.h"
 #include "cartographer_ros/submap.h"
@@ -67,8 +68,10 @@ class DrawableSubmap : public QObject {
   bool QueryInProgress();
 
   // Sets the alpha of the submap taking into account its slice height and the
-  // 'current_tracking_z'.
-  void SetAlpha(double current_tracking_z);
+  // 'current_tracking_z'. 'fade_out_start_distance_in_meters' defines the
+  // distance in z direction in meters, before which the submap will be shown
+  // at full opacity.
+  void SetAlpha(double current_tracking_z, float fade_out_distance_in_meters);
 
   // Sets the visibility of a slice. It will be drawn if the parent submap
   // is also visible.
@@ -102,10 +105,10 @@ class DrawableSubmap : public QObject {
   ::rviz::Axes pose_axes_;
   ::rviz::MovableText submap_id_text_;
   std::chrono::milliseconds last_query_timestamp_ GUARDED_BY(mutex_);
-  bool query_in_progress_ = false GUARDED_BY(mutex_);
-  int metadata_version_ = -1 GUARDED_BY(mutex_);
+  bool query_in_progress_ GUARDED_BY(mutex_) = false;
+  int metadata_version_ GUARDED_BY(mutex_) = -1;
   std::future<void> rpc_request_future_;
-  std::unique_ptr<::cartographer_ros::SubmapTextures> submap_textures_
+  std::unique_ptr<::cartographer::io::SubmapTextures> submap_textures_
       GUARDED_BY(mutex_);
   float current_alpha_ = 0.f;
   std::unique_ptr<::rviz::BoolProperty> visibility_;

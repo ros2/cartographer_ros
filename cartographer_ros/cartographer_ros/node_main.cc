@@ -19,9 +19,7 @@
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/ros_log_sink.h"
 #include "gflags/gflags.h"
-
-#include <rclcpp/rclcpp.hpp>
-#include <tf2_ros/transform_listener.h>
+#include "tf2_ros/transform_listener.h"
 
 DEFINE_string(configuration_directory, "",
               "First directory in which configuration files are searched, "
@@ -42,15 +40,12 @@ DEFINE_string(
     save_state_filename, "",
     "If non-empty, serialize state and write it to disk before shutting down.");
 
-
 namespace cartographer_ros {
 namespace {
 
 void Run() {
-  auto node_handle = rclcpp::Node::make_shared("cartographer_node");
   constexpr double kTfBufferCacheTimeInSeconds = 10.;
-  tf2_ros::Buffer tf_buffer(
-    node_handle->get_clock(), ::tf2::durationFromSec(kTfBufferCacheTimeInSeconds));
+  tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
   tf2_ros::TransformListener tf(tf_buffer);
   NodeOptions node_options;
   TrajectoryOptions trajectory_options;
@@ -60,7 +55,6 @@ void Run() {
   auto map_builder =
       cartographer::common::make_unique<cartographer::mapping::MapBuilder>(
           node_options.map_builder_options);
-
   Node node(node_options, std::move(map_builder), &tf_buffer);
   if (!FLAGS_load_state_filename.empty()) {
     node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
@@ -70,7 +64,7 @@ void Run() {
     node.StartTrajectoryWithDefaultTopics(trajectory_options);
   }
 
-  rclcpp::spin(node.node_handle());
+  ::ros::spin();
 
   node.FinishAllTrajectories();
   node.RunFinalOptimization();
@@ -92,9 +86,10 @@ int main(int argc, char** argv) {
   CHECK(!FLAGS_configuration_basename.empty())
       << "-configuration_basename is missing.";
 
-  ::rclcpp::init(argc, argv);
+  ::ros::init(argc, argv, "cartographer_node");
+  ::ros::start();
 
   cartographer_ros::ScopedRosLogSink ros_log_sink;
   cartographer_ros::Run();
-  ::rclcpp::shutdown();
+  ::ros::shutdown();
 }
