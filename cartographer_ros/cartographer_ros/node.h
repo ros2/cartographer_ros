@@ -55,9 +55,11 @@ namespace cartographer_ros {
 // Wires up ROS topics to SLAM.
 class Node {
  public:
-  Node(const NodeOptions& node_options,
+  Node(::rclcpp::Node::SharedPtr node_handle,
+       const NodeOptions& node_options,
        std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
-       tf2_ros::Buffer* tf_buffer);  ~Node();
+       tf2_ros::Buffer* tf_buffer);  
+  ~Node();
 
   Node(const Node&) = delete;
   Node& operator=(const Node&) = delete;

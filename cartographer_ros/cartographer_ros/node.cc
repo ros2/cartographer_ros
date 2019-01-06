@@ -66,14 +66,12 @@ template <typename MessageType>
     void (Node::*handler)(int, const std::string&,
                           const typename MessageType::ConstSharedPtr),
     const int trajectory_id, const std::string& topic,
-    ::rclcpp::Node::SharedPtr node_handle, Node* const node,
-    rmw_qos_profile_t custom_qos_profile) {
+    ::rclcpp::Node::SharedPtr node_handle, Node* const node, rmw_qos_profile_t custom_qos_profile) {
   return node_handle->create_subscription<MessageType>(
       topic,
       [node, handler, trajectory_id, topic](const typename MessageType::ConstSharedPtr msg) {
             (node->*handler)(trajectory_id, topic, msg);
-      },
-      custom_qos_profile);
+      }, custom_qos_profile);
 }
 
 }  // namespace
@@ -83,6 +81,7 @@ namespace carto = ::cartographer;
 using carto::transform::Rigid3d;
 
 Node::Node(
+  ::rclcpp::Node::SharedPtr node_handle,
   const NodeOptions& node_options,
   std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
   tf2_ros::Buffer* const tf_buffer)
@@ -96,6 +95,8 @@ Node::Node(
   custom_qos_profile.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
   custom_qos_profile.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
 
+  node_handle_ = node_handle;
+
   submap_list_publisher_ =
       node_handle_->create_publisher<::cartographer_ros_msgs::msg::SubmapList>(
           kSubmapListTopic, custom_qos_profile);
@@ -108,6 +109,7 @@ Node::Node(
   constraint_list_publisher_ =
       node_handle_->create_publisher<::visualization_msgs::msg::MarkerArray>(
           kConstraintListTopic, custom_qos_profile);
+
   service_servers_.push_back(node_handle_->create_service<cartographer_ros_msgs::srv::SubmapQuery>(
       kSubmapQueryServiceName, std::bind(&Node::HandleSubmapQuery, this, std::placeholders::_1, std::placeholders::_2)));
   service_servers_.push_back(node_handle_->create_service<cartographer_ros_msgs::srv::StartTrajectory>(
