@@ -22,6 +22,8 @@
 #include "cartographer_ros/time_conversion.h"
 #include "glog/logging.h"
 
+#include "rclcpp/clock.hpp"
+
 namespace cartographer_ros {
 
 namespace {
@@ -101,11 +103,11 @@ CreateInitialTrajectoryPose(
   pose.set_timestamp(
       lua_parameter_dictionary->HasKey("timestamp")
           ? lua_parameter_dictionary->GetNonNegativeInt("timestamp")
-          : cartographer::common::ToUniversal(FromRos(ros::Time::now())));
+          : cartographer::common::ToUniversal(FromRos(::rclcpp::Clock().now())));
   return pose;
 }
 
-bool FromRosMessage(const cartographer_ros_msgs::TrajectoryOptions& msg,
+bool FromRosMessage(const cartographer_ros_msgs::msg::TrajectoryOptions& msg,
                     TrajectoryOptions* options) {
   options->tracking_frame = msg.tracking_frame;
   options->published_frame = msg.published_frame;
@@ -135,9 +137,9 @@ bool FromRosMessage(const cartographer_ros_msgs::TrajectoryOptions& msg,
   return true;
 }
 
-cartographer_ros_msgs::TrajectoryOptions ToRosMessage(
+cartographer_ros_msgs::msg::TrajectoryOptions ToRosMessage(
     const TrajectoryOptions& options) {
-  cartographer_ros_msgs::TrajectoryOptions msg;
+  cartographer_ros_msgs::msg::TrajectoryOptions msg;
   msg.tracking_frame = options.tracking_frame;
   msg.published_frame = options.published_frame;
   msg.odom_frame = options.odom_frame;
