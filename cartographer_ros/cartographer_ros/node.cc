@@ -135,6 +135,9 @@ Node::Node(
     std::chrono::milliseconds(int(node_options_.trajectory_publish_period_sec * 1000)),
     std::bind(&Node::PublishTrajectoryNodeList, this)));
   wall_timers_.push_back(node_handle_->create_wall_timer(
+    std::chrono::milliseconds(int(node_options_.trajectory_publish_period_sec * 1000)),
+    std::bind(&Node::PublishLandmarkPosesList, this)));
+  wall_timers_.push_back(node_handle_->create_wall_timer(
     std::chrono::milliseconds(int(kConstraintPublishPeriodSec * 1000)),
     std::bind(&Node::PublishConstraintList, this)));
 }
