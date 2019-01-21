@@ -178,7 +178,7 @@ void SensorBridge::HandlePointCloud2Message(
 const TfBridge& SensorBridge::tf_bridge() const { return tf_bridge_; }
 
 void SensorBridge::HandleLaserScan(
-    const std::string& sensor_id, const carto::common::Time start_time,
+    const std::string& sensor_id, const carto::common::Time time,
     const std::string& frame_id,
     const carto::sensor::PointCloudWithIntensities& points) {
   if (points.points.empty()) {
@@ -200,7 +200,7 @@ void SensorBridge::HandleLaserScan(
     // `subdivision_time` is the end of the measurement so sensor::Collator will
     // send all other sensor data first.
     const carto::common::Time subdivision_time =
-        start_time + carto::common::FromSeconds(time_to_subdivision_end);
+        time + carto::common::FromSeconds(time_to_subdivision_end);
     auto it = sensor_to_previous_subdivision_time_.find(sensor_id);
     if (it != sensor_to_previous_subdivision_time_.end() &&
         it->second >= subdivision_time) {
