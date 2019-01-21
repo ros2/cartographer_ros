@@ -36,7 +36,7 @@ std::unique_ptr<::cartographer::transform::Rigid3d> TfBridge::LookupToTracking(
   try {
     const ::builtin_interfaces::msg::Time latest_tf_time =
         buffer_
-            ->lookupTransform(tracking_frame_, frame_id, std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>(),
+            ->lookupTransform(tracking_frame_, frame_id, tf2::TimePointZero,
                               timeout)
             .header.stamp;
     const ::builtin_interfaces::msg::Time requested_time = ToRos(time);
@@ -62,7 +62,7 @@ std::unique_ptr<::cartographer::transform::Rigid3d> TfBridge::LookupToTracking(
     //    tracking_frame_, frame_id, recovered, timeout)));
     return ::cartographer::common::make_unique<
         ::cartographer::transform::Rigid3d>(ToRigid3d(buffer_->lookupTransform(
-        tracking_frame_, frame_id, tf2::TimePointZero, timeout)));
+        tracking_frame_, frame_id, recovered, timeout)));
   } catch (const tf2::TransformException& ex) {
     LOG(WARNING) << ex.what();
   }
