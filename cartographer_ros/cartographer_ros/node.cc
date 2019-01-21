@@ -196,23 +196,24 @@ void Node::PublishTrajectoryStates() {
     // frequency, and republishing it would be computationally wasteful.
     if (trajectory_state.local_slam_data->time !=
         extrapolator.GetLastPoseTime()) {
-      // TODO(gaschler): Consider using other message without time
-      // information.
-      carto::sensor::TimedPointCloud point_cloud;
-      point_cloud.reserve(trajectory_state.local_slam_data
-                              ->range_data_in_local.returns.size());
-      for (const Eigen::Vector3f point :
-            trajectory_state.local_slam_data->range_data_in_local.returns) {
-        Eigen::Vector4f point_time;
-        point_time << point, 0.f;
-        point_cloud.push_back(point_time);
+      if (node_handle_->count_subscribers(kScanMatchedPointCloudTopic) > 0) {
+        // TODO(gaschler): Consider using other message without time
+        // information.
+        carto::sensor::TimedPointCloud point_cloud;
+        point_cloud.reserve(trajectory_state.local_slam_data
+                                ->range_data_in_local.returns.size());
+        for (const Eigen::Vector3f point :
+              trajectory_state.local_slam_data->range_data_in_local.returns) {
+          Eigen::Vector4f point_time;
+          point_time << point, 0.f;
+          point_cloud.push_back(point_time);
+        }
+        scan_matched_point_cloud_publisher_->publish(ToPointCloud2Message(
+            carto::common::ToUniversal(trajectory_state.local_slam_data->time),
+            node_options_.map_frame,
+            carto::sensor::TransformTimedPointCloud(
+                point_cloud, trajectory_state.local_to_map.cast<float>())));
       }
-      scan_matched_point_cloud_publisher_->publish(ToPointCloud2Message(
-          carto::common::ToUniversal(trajectory_state.local_slam_data->time),
-          node_options_.map_frame,
-          carto::sensor::TransformTimedPointCloud(
-              point_cloud, trajectory_state.local_to_map.cast<float>())));
-
       extrapolator.AddPose(trajectory_state.local_slam_data->time,
                            trajectory_state.local_slam_data->local_pose);
     }
@@ -280,7 +281,7 @@ void Node::PublishTrajectoryNodeList() {
 void Node::PublishLandmarkPosesList() {
   if (node_handle_->count_subscribers(kLandmarkPosesListTopic) > 0) {
     carto::common::MutexLocker lock(&mutex_);
-    constraint_list_publisher_->publish(map_builder_bridge_.GetConstraintList());
+    constraint_list_publisher_->publish(map_builder_bridge_.GetLandmarkPosesList());
   }
 }
 
@@ -513,16 +514,12 @@ bool Node::HandleStartTrajectory(
     LOG(ERROR) << error;
     response->status.code = cartographer_ros_msgs::msg::StatusCode::INVALID_ARGUMENT;
     response->status.message = error;
-
-    return false;
   }
   else if (!ValidateTopicNames(request->topics, options)) {
     const std::string error = "Invalid topics.";
     LOG(ERROR) << error;
     response->status.code = cartographer_ros_msgs::msg::StatusCode::INVALID_ARGUMENT;
     response->status.message = error;
-
-    return false;
   }
   else {
     response->trajectory_id = AddTrajectory(options, request->topics);
@@ -585,7 +582,7 @@ bool Node::HandleFinishTrajectory(
 bool Node::HandleWriteState(
     const std::shared_ptr<::cartographer_ros_msgs::srv::WriteState::Request> request,
     std::shared_ptr<::cartographer_ros_msgs::srv::WriteState::Response> response) {
-  (void)response;
+
   carto::common::MutexLocker lock(&mutex_);
   if (map_builder_bridge_.SerializeState(request->filename)) {
     response->status.code = cartographer_ros_msgs::msg::StatusCode::OK;
