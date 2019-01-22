@@ -36,7 +36,7 @@
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include "rclcpp/clock.hpp"
+#include <rclcpp/time.hpp>
 
 namespace cartographer_ros {
 
@@ -80,12 +80,12 @@ class MapBuilderBridge {
       std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response);
 
   std::set<int> GetFrozenTrajectoryIds(); 
-  cartographer_ros_msgs::msg::SubmapList GetSubmapList();
+  cartographer_ros_msgs::msg::SubmapList GetSubmapList(::rclcpp::Time node_time);
   std::unordered_map<int, TrajectoryState> GetTrajectoryStates()
       EXCLUDES(mutex_);
-  visualization_msgs::msg::MarkerArray GetTrajectoryNodeList();
-  visualization_msgs::msg::MarkerArray GetLandmarkPosesList();
-  visualization_msgs::msg::MarkerArray GetConstraintList();
+  visualization_msgs::msg::MarkerArray GetTrajectoryNodeList(::rclcpp::Time node_time);
+  visualization_msgs::msg::MarkerArray GetLandmarkPosesList(::rclcpp::Time node_time);
+  visualization_msgs::msg::MarkerArray GetConstraintList(::rclcpp::Time node_time);
 
   SensorBridge* sensor_bridge(int trajectory_id);
 

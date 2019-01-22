@@ -24,6 +24,8 @@
 #include "cartographer/mapping/proto/trajectory_builder_options.pb.h"
 #include <cartographer_ros_msgs/msg/trajectory_options.hpp>
 
+#include <rclcpp/time.hpp>
+
 namespace cartographer_ros {
 
 struct TrajectoryOptions {
@@ -50,14 +52,16 @@ struct TrajectoryOptions {
 
 ::cartographer::mapping::proto::InitialTrajectoryPose
 CreateInitialTrajectoryPose(
-    ::cartographer::common::LuaParameterDictionary* lua_parameter_dictionary);
+    ::cartographer::common::LuaParameterDictionary* lua_parameter_dictionary,
+    ::rclcpp::Time node_time);
 
 TrajectoryOptions CreateTrajectoryOptions(
     ::cartographer::common::LuaParameterDictionary* lua_parameter_dictionary);
 
 TrajectoryOptions CreateTrajectoryOptions(
     ::cartographer::common::LuaParameterDictionary* lua_parameter_dictionary,
-    ::cartographer::common::LuaParameterDictionary* initial_trajectory_pose);
+    ::cartographer::common::LuaParameterDictionary* initial_trajectory_pose,
+    ::rclcpp::Time node_time);
 
 // Try to convert 'msg' into 'options'. Returns false on failure.
 bool FromRosMessage(const cartographer_ros_msgs::msg::TrajectoryOptions& msg,

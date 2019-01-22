@@ -84,16 +84,18 @@ TrajectoryOptions CreateTrajectoryOptions(
 
 TrajectoryOptions CreateTrajectoryOptions(
     ::cartographer::common::LuaParameterDictionary* lua_parameter_dictionary,
-    ::cartographer::common::LuaParameterDictionary* initial_trajectory_pose) {
+    ::cartographer::common::LuaParameterDictionary* initial_trajectory_pose,
+    ::rclcpp::Time node_time) {
   TrajectoryOptions options = CreateTrajectoryOptions(lua_parameter_dictionary);
   *options.trajectory_builder_options.mutable_initial_trajectory_pose() =
-      CreateInitialTrajectoryPose(initial_trajectory_pose);
+      CreateInitialTrajectoryPose(initial_trajectory_pose, node_time);
   return options;
 }
 
 ::cartographer::mapping::proto::InitialTrajectoryPose
 CreateInitialTrajectoryPose(
-    ::cartographer::common::LuaParameterDictionary* lua_parameter_dictionary) {
+    ::cartographer::common::LuaParameterDictionary* lua_parameter_dictionary,
+    ::rclcpp::Time node_time) {
   ::cartographer::mapping::proto::InitialTrajectoryPose pose;
   pose.set_to_trajectory_id(
       lua_parameter_dictionary->GetNonNegativeInt("to_trajectory_id"));
@@ -103,7 +105,7 @@ CreateInitialTrajectoryPose(
   pose.set_timestamp(
       lua_parameter_dictionary->HasKey("timestamp")
           ? lua_parameter_dictionary->GetNonNegativeInt("timestamp")
-          : cartographer::common::ToUniversal(FromRos(::rclcpp::Clock().now())));
+          : cartographer::common::ToUniversal(FromRos(node_time)));
   return pose;
 }
 

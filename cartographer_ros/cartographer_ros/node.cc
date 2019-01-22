@@ -155,7 +155,7 @@ bool Node::HandleSubmapQuery(
 
 void Node::PublishSubmapList() {
   carto::common::MutexLocker lock(&mutex_);
-  submap_list_publisher_->publish(map_builder_bridge_.GetSubmapList());
+  submap_list_publisher_->publish(map_builder_bridge_.GetSubmapList(node_handle_->now()));
 }
 
 void Node::AddExtrapolator(const int trajectory_id,
@@ -224,7 +224,7 @@ void Node::PublishTrajectoryStates() {
     // time instead. Since tf knows how to interpolate, providing newer
     // information is better.
     const ::cartographer::common::Time now = std::max(
-        FromRos(::rclcpp::Clock().now()), extrapolator.GetLastExtrapolatedTime());
+        FromRos(node_handle_->now()), extrapolator.GetLastExtrapolatedTime());
     stamped_transform.header.stamp = ToRos(now);
 
     const Rigid3d tracking_to_local = [&] {
@@ -274,21 +274,21 @@ void Node::PublishTrajectoryNodeList() {
   if (node_handle_->count_subscribers(kTrajectoryNodeListTopic) > 0) {
     carto::common::MutexLocker lock(&mutex_);
     trajectory_node_list_publisher_->publish(
-        map_builder_bridge_.GetTrajectoryNodeList());
+        map_builder_bridge_.GetTrajectoryNodeList(node_handle_->now()));
   }
 }
 
 void Node::PublishLandmarkPosesList() {
   if (node_handle_->count_subscribers(kLandmarkPosesListTopic) > 0) {
     carto::common::MutexLocker lock(&mutex_);
-    constraint_list_publisher_->publish(map_builder_bridge_.GetLandmarkPosesList());
+    constraint_list_publisher_->publish(map_builder_bridge_.GetLandmarkPosesList(node_handle_->now()));
   }
 }
 
 void Node::PublishConstraintList() {
   if (node_handle_->count_subscribers(kConstraintListTopic) > 0) {
     carto::common::MutexLocker lock(&mutex_);
-    constraint_list_publisher_->publish(map_builder_bridge_.GetConstraintList());
+    constraint_list_publisher_->publish(map_builder_bridge_.GetConstraintList(node_handle_->now()));
   }
 }
 
