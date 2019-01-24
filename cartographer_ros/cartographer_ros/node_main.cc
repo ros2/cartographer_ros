@@ -48,6 +48,9 @@ namespace {
 
 void Run() {
   auto node_handle = rclcpp::Node::make_shared("cartographer_node");
+
+  node_handle->set_parameters({rclcpp::Parameter("use_sim_time", true)});
+
   constexpr double kTfBufferCacheTimeInSeconds = 10.;
   tf2_ros::Buffer tf_buffer(
     node_handle->get_clock(), ::tf2::durationFromSec(kTfBufferCacheTimeInSeconds));
