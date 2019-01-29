@@ -111,13 +111,13 @@ Node::Node(
           kConstraintListTopic, custom_qos_profile);
 
   service_servers_.push_back(node_handle_->create_service<cartographer_ros_msgs::srv::SubmapQuery>(
-      kSubmapQueryServiceName, std::bind(&Node::HandleSubmapQuery, this, std::placeholders::_1, std::placeholders::_2)));
+      kSubmapQueryServiceName, std::bind(&Node::HandleSubmapQuery, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)));
   service_servers_.push_back(node_handle_->create_service<cartographer_ros_msgs::srv::StartTrajectory>(
-      kStartTrajectoryServiceName, std::bind(&Node::HandleStartTrajectory, this, std::placeholders::_1, std::placeholders::_2)));
+      kStartTrajectoryServiceName, std::bind(&Node::HandleStartTrajectory, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)));
   service_servers_.push_back(node_handle_->create_service<cartographer_ros_msgs::srv::FinishTrajectory>(
-      kFinishTrajectoryServiceName, std::bind(&Node::HandleFinishTrajectory, this, std::placeholders::_1, std::placeholders::_2)));
+      kFinishTrajectoryServiceName, std::bind(&Node::HandleFinishTrajectory, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)));
   service_servers_.push_back(node_handle_->create_service<cartographer_ros_msgs::srv::WriteState>(
-      kWriteStateServiceName, std::bind(&Node::HandleWriteState, this, std::placeholders::_1, std::placeholders::_2)));
+      kWriteStateServiceName, std::bind(&Node::HandleWriteState, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)));
 
   scan_matched_point_cloud_publisher_ =
       node_handle_->create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -146,11 +146,16 @@ Node::~Node() { FinishAllTrajectories(); }
 
 ::rclcpp::Node::SharedPtr Node::node_handle() { return node_handle_; }
 
-bool Node::HandleSubmapQuery(
+void Node::HandleSubmapQuery(
+    const std::shared_ptr<rmw_request_id_t> request_header,
     const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
     std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response) {
+
+  (void)request_header;
   carto::common::MutexLocker lock(&mutex_);
-  return map_builder_bridge_.HandleSubmapQuery(request, response);
+  map_builder_bridge_.HandleSubmapQuery(request, response);
+
+  RCLCPP_INFO(node_handle_->get_logger(), "HandleSubmapQuery submap_version : %s", response->submap_version);
 }
 
 void Node::PublishSubmapList() {
@@ -503,9 +508,12 @@ cartographer_ros_msgs::msg::StatusResponse Node::FinishTrajectoryUnderLock(
   return status_response;
 }
 
-bool Node::HandleStartTrajectory(
+void Node::HandleStartTrajectory(
+    const std::shared_ptr<rmw_request_id_t> request_header,
     const std::shared_ptr<::cartographer_ros_msgs::srv::StartTrajectory::Request> request,
-    std::shared_ptr<::cartographer_ros_msgs::srv::StartTrajectory::Response> response) {
+     std::shared_ptr<::cartographer_ros_msgs::srv::StartTrajectory::Response> response) {
+  
+  (void)request_header;
   carto::common::MutexLocker lock(&mutex_);
   TrajectoryOptions options;
   if (!FromRosMessage(request->options, &options) ||
@@ -526,7 +534,6 @@ bool Node::HandleStartTrajectory(
     response->status.code = cartographer_ros_msgs::msg::StatusCode::OK;
     response->status.message = "Success.";
   }
-  return true;
 }
 
 void Node::StartTrajectoryWithDefaultTopics(const TrajectoryOptions& options) {
@@ -569,20 +576,22 @@ int Node::AddOfflineTrajectory(
   return trajectory_id;
 }
 
-bool Node::HandleFinishTrajectory(
+void Node::HandleFinishTrajectory(
+    const std::shared_ptr<rmw_request_id_t> request_header,
     const std::shared_ptr<::cartographer_ros_msgs::srv::FinishTrajectory::Request> request,
-    std::shared_ptr<::cartographer_ros_msgs::srv::FinishTrajectory::Response> response) {
-  (void)response;
+     std::shared_ptr<::cartographer_ros_msgs::srv::FinishTrajectory::Response> response) {
+
+  (void)request_header;
   carto::common::MutexLocker lock(&mutex_);
   response->status = FinishTrajectoryUnderLock(request->trajectory_id);
-
-  return true;
 }
 
-bool Node::HandleWriteState(
+void Node::HandleWriteState(
+    const std::shared_ptr<rmw_request_id_t> request_header,
     const std::shared_ptr<::cartographer_ros_msgs::srv::WriteState::Request> request,
-    std::shared_ptr<::cartographer_ros_msgs::srv::WriteState::Response> response) {
+     std::shared_ptr<::cartographer_ros_msgs::srv::WriteState::Response> response) {
 
+  (void)request_header;
   carto::common::MutexLocker lock(&mutex_);
   if (map_builder_bridge_.SerializeState(request->filename)) {
     response->status.code = cartographer_ros_msgs::msg::StatusCode::OK;
@@ -591,7 +600,6 @@ bool Node::HandleWriteState(
     response->status.code = cartographer_ros_msgs::msg::StatusCode::INVALID_ARGUMENT;
     response->status.message = "Failed to write '" + request->filename + "'.";
   }
-  return true;
 }
 
 void Node::FinishAllTrajectories() {

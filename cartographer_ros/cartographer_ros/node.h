@@ -128,18 +128,22 @@ class Node {
     std::string topic;
   };
 
-  bool HandleSubmapQuery(
+  void HandleSubmapQuery(
+      const std::shared_ptr<rmw_request_id_t> request_header,
       const std::shared_ptr<cartographer_ros_msgs::srv::SubmapQuery::Request> request,
-      std::shared_ptr<cartographer_ros_msgs::srv::SubmapQuery::Response> response);
-  bool HandleStartTrajectory(
+        std::shared_ptr<cartographer_ros_msgs::srv::SubmapQuery::Response> response);
+  void HandleStartTrajectory(
+      const std::shared_ptr<rmw_request_id_t> request_header,
       const std::shared_ptr<cartographer_ros_msgs::srv::StartTrajectory::Request> request,
-      std::shared_ptr<cartographer_ros_msgs::srv::StartTrajectory::Response> response);
-  bool HandleFinishTrajectory(
+       std::shared_ptr<cartographer_ros_msgs::srv::StartTrajectory::Response> response);
+  void HandleFinishTrajectory(
+      const std::shared_ptr<rmw_request_id_t> request_header,
       const std::shared_ptr<cartographer_ros_msgs::srv::FinishTrajectory::Request> request,
-      std::shared_ptr<cartographer_ros_msgs::srv::FinishTrajectory::Response> response);
-  bool HandleWriteState(
+       std::shared_ptr<cartographer_ros_msgs::srv::FinishTrajectory::Response> response);
+  void HandleWriteState(
+      const std::shared_ptr<rmw_request_id_t> request_header,
       const std::shared_ptr<cartographer_ros_msgs::srv::WriteState::Request> request,
-      std::shared_ptr<cartographer_ros_msgs::srv::WriteState::Response> response);
+       std::shared_ptr<cartographer_ros_msgs::srv::WriteState::Response> response);
   // Returns the set of SensorIds expected for a trajectory.
   // 'SensorId::id' is the expected ROS topic name.
   std::set<::cartographer::mapping::TrajectoryBuilderInterface::SensorId>
