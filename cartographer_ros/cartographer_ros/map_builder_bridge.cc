@@ -165,7 +165,7 @@ bool MapBuilderBridge::SerializeState(const std::string& filename) {
   return writer.Close();
 }
 
-bool MapBuilderBridge::HandleSubmapQuery(
+void MapBuilderBridge::HandleSubmapQuery(
     const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
     std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response) {
   cartographer::mapping::proto::SubmapQuery::Response response_proto;
@@ -177,7 +177,7 @@ bool MapBuilderBridge::HandleSubmapQuery(
     LOG(ERROR) << error;
     response->status.code = cartographer_ros_msgs::msg::StatusCode::NOT_FOUND;
     response->status.message = error;
-    return false;
+    return;
   }
 
   response->submap_version = response_proto.submap_version();
@@ -194,8 +194,6 @@ bool MapBuilderBridge::HandleSubmapQuery(
   }
   response->status.message = "Success.";
   response->status.code = cartographer_ros_msgs::msg::StatusCode::OK;
-   
-  return true;
 }
 
 std::set<int> MapBuilderBridge::GetFrozenTrajectoryIds() {

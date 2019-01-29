@@ -75,7 +75,7 @@ class MapBuilderBridge {
   void RunFinalOptimization();
   bool SerializeState(const std::string& filename);
 
-  bool HandleSubmapQuery(
+  void HandleSubmapQuery(
       const std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Request> request,
       std::shared_ptr<::cartographer_ros_msgs::srv::SubmapQuery::Response> response);
 
