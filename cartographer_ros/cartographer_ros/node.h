@@ -49,20 +49,17 @@
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_listener.h>
 
-namespace cartographer_ros {
-
+namespace cartographer_ros 
+{
 // Wires up ROS topics to SLAM.
-class Node {
+class Cartographer : public rclcpp::Node
+{
  public:
-  Node(::rclcpp::Node::SharedPtr node_handle,
-       const NodeOptions& node_options,
-       std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
-       tf2_ros::Buffer* tf_buffer);  
-  ~Node();
-
-  Node(const Node&) = delete;
-  Node& operator=(const Node&) = delete;
+  Cartographer(const NodeOptions& node_options,
+       std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder);  
+  ~Cartographer();
 
   // Finishes all yet active trajectories.
   void FinishAllTrajectories();
@@ -172,18 +169,26 @@ class Node {
   const NodeOptions node_options_;
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
 
   cartographer::common::Mutex mutex_;
-  MapBuilderBridge map_builder_bridge_ GUARDED_BY(mutex_);
+  std::shared_ptr<MapBuilderBridge> map_builder_bridge_ GUARDED_BY(mutex_);
 
   ::rclcpp::Node::SharedPtr node_handle_;
   ::rclcpp::Publisher<::cartographer_ros_msgs::msg::SubmapList>::SharedPtr submap_list_publisher_;
   ::rclcpp::Publisher<::visualization_msgs::msg::MarkerArray>::SharedPtr trajectory_node_list_publisher_;
   ::rclcpp::Publisher<::visualization_msgs::msg::MarkerArray>::SharedPtr landmark_poses_list_publisher_;
   ::rclcpp::Publisher<::visualization_msgs::msg::MarkerArray>::SharedPtr constraint_list_publisher_;
-  // These rclcpp::ServiceBases need to live for the lifetime of the node.
-  std::vector<::rclcpp::ServiceBase::SharedPtr> service_servers_;
   ::rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr scan_matched_point_cloud_publisher_;
+
+  ::rclcpp::Service<cartographer_ros_msgs::srv::SubmapQuery>::SharedPtr submap_query_server_;
+  ::rclcpp::Service<cartographer_ros_msgs::srv::StartTrajectory>::SharedPtr start_trajectory_server_;
+  ::rclcpp::Service<cartographer_ros_msgs::srv::FinishTrajectory>::SharedPtr finish_trajectory_server_;
+  ::rclcpp::Service<cartographer_ros_msgs::srv::WriteState>::SharedPtr write_state_server_;
+
+//   std::vector<::rclcpp::ServiceBase::SharedPtr> service_servers_;
+
 
   struct TrajectorySensorSamplers {
     TrajectorySensorSamplers(const double rangefinder_sampling_ratio,
@@ -213,7 +218,13 @@ class Node {
 
   // We have to keep the timer handles of ::rclcpp::TimerBase around, otherwise
   // they do not fire.
-  std::vector<::rclcpp::TimerBase::SharedPtr> wall_timers_;
+//   std::vector<::rclcpp::TimerBase::SharedPtr> wall_timers_;
+  ::rclcpp::TimerBase::SharedPtr submap_list_timer_;
+  ::rclcpp::TimerBase::SharedPtr trajectory_states_timer_;
+  ::rclcpp::TimerBase::SharedPtr trajectory_node_list_timer_;
+  ::rclcpp::TimerBase::SharedPtr landmark_pose_list_timer_;
+  ::rclcpp::TimerBase::SharedPtr constrain_list_timer_;
+
 };
 
 }  // namespace cartographer_ros

@@ -47,14 +47,14 @@ namespace cartographer_ros {
 namespace {
 
 void Run() {
-  auto node_handle = rclcpp::Node::make_shared("cartographer_node");
+  // auto node_handle = rclcpp::Node::make_shared("cartographer_node");
 
-  node_handle->set_parameters({rclcpp::Parameter("use_sim_time", true)});
+  // node_handle->set_parameters({rclcpp::Parameter("use_sim_time", true)});
 
-  constexpr double kTfBufferCacheTimeInSeconds = 10.;
-  tf2_ros::Buffer tf_buffer(
-    node_handle->get_clock(), ::tf2::durationFromSec(kTfBufferCacheTimeInSeconds));
-  tf2_ros::TransformListener tf(tf_buffer);
+  // constexpr double kTfBufferCacheTimeInSeconds = 10.;
+  // tf2_ros::Buffer tf_buffer(
+  //   node_handle->get_clock(), ::tf2::durationFromSec(kTfBufferCacheTimeInSeconds));
+  // tf2_ros::TransformListener tf(tf_buffer);
   NodeOptions node_options;
   TrajectoryOptions trajectory_options;
   std::tie(node_options, trajectory_options) =
@@ -64,23 +64,24 @@ void Run() {
       cartographer::common::make_unique<cartographer::mapping::MapBuilder>(
           node_options.map_builder_options);
 
-  Node node(node_handle, node_options, std::move(map_builder), &tf_buffer);
+  // Node node(node_handle, node_options, std::move(map_builder), &tf_buffer);
+  auto node = std::make_shared<cartographer_ros::Cartographer>(node_options, std::move(map_builder));
 
   if (!FLAGS_load_state_filename.empty()) {
-    node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
+    node->LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
   }
 
   if (FLAGS_start_trajectory_with_default_topics) {
-    node.StartTrajectoryWithDefaultTopics(trajectory_options);
+    node->StartTrajectoryWithDefaultTopics(trajectory_options);
   }
 
-  rclcpp::spin(node.node_handle());
+  rclcpp::spin(node);
 
-  node.FinishAllTrajectories();
-  node.RunFinalOptimization();
+  node->FinishAllTrajectories();
+  node->RunFinalOptimization();
 
   if (!FLAGS_save_state_filename.empty()) {
-    node.SerializeState(FLAGS_save_state_filename);
+    node->SerializeState(FLAGS_save_state_filename);
   }
 }
 
