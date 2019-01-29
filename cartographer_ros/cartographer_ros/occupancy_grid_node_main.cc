@@ -38,7 +38,6 @@
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-
 DEFINE_double(resolution, 0.05,
               "Resolution of a grid cell in the published occupancy grid.");
 DEFINE_double(publish_period_sec, 1.0, "OccupancyGrid publishing period.");
@@ -78,7 +77,7 @@ class OccupancyGridNode : public rclcpp::Node
             return;
           }
 
-          RCLCPP_INFO(this->get_logger(), "Subscribe submap list"); 
+          // RCLCPP_INFO(this->get_logger(), "Subscribe submap list"); 
 
           // Keep track of submap IDs that don't appear in the message anymore.
           std::set<SubmapId> submap_ids_to_delete;
@@ -152,7 +151,7 @@ class OccupancyGridNode : public rclcpp::Node
         auto result = future.get();
         RCLCPP_INFO(this->get_logger(), "Result of submap_version: %" PRId64, result->submap_version);
       };
-        RCLCPP_INFO(this->get_logger(), "async_send");
+    RCLCPP_INFO(this->get_logger(), "async_send");
     auto future_result = client_->async_send_request(srv_request, response_received_callback);
 
     RCLCPP_INFO(this->get_logger(), "Result of submap_version: %" PRId64, future_result.get()->submap_version);
