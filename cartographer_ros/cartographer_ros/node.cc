@@ -165,8 +165,6 @@ Cartographer::Cartographer(
   write_state_server_ = create_service<cartographer_ros_msgs::srv::WriteState>(
       kWriteStateServiceName, write_state_callback);
 
-  // tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_handle_);
-
   submap_list_timer_ = this->create_wall_timer(
     std::chrono::milliseconds(int(node_options_.submap_publish_period_sec * 1000)),
     [this]() {
@@ -210,8 +208,6 @@ void Cartographer::HandleSubmapQuery(
   (void)request_header;
   carto::common::MutexLocker lock(&mutex_);
   map_builder_bridge_->HandleSubmapQuery(request, response);
-
-  RCLCPP_INFO(this->get_logger(), "HandleSubmapQuery submap_version : %s", response->status.message.c_str());
 }
 
 void Cartographer::PublishSubmapList() {
