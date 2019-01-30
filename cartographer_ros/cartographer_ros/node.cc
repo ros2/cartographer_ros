@@ -168,29 +168,31 @@ Cartographer::Cartographer(
   // tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_handle_);
 
   submap_list_timer_ = this->create_wall_timer(
-    std::chrono::seconds(int(node_options_.submap_publish_period_sec)),
+    std::chrono::milliseconds(int(node_options_.submap_publish_period_sec * 1000)),
     [this]() {
       PublishSubmapList();
     });
 
   trajectory_states_timer_ = this->create_wall_timer(
-    std::chrono::seconds(int(node_options_.pose_publish_period_sec)),
+    std::chrono::milliseconds(int(node_options_.pose_publish_period_sec * 1000)),
     [this]() {
       PublishTrajectoryStates();
     });
 
   trajectory_node_list_timer_ = this->create_wall_timer(
-    std::chrono::seconds(int(node_options_.trajectory_publish_period_sec)),
+    std::chrono::milliseconds(int(node_options_.trajectory_publish_period_sec * 1000)),
     [this]() {
       PublishTrajectoryNodeList();
     });
+
   landmark_pose_list_timer_ = this->create_wall_timer(
-    std::chrono::seconds(int(node_options_.trajectory_publish_period_sec)),
+    std::chrono::milliseconds(int(node_options_.trajectory_publish_period_sec * 1000)),
     [this]() {
       PublishLandmarkPosesList();
     });
+
   constrain_list_timer_ = this->create_wall_timer(
-    std::chrono::seconds(int(kConstraintPublishPeriodSec)),
+    std::chrono::milliseconds(int(kConstraintPublishPeriodSec * 1000)),
     [this]() {
       PublishConstraintList();
     });
@@ -214,7 +216,7 @@ void Cartographer::HandleSubmapQuery(
 
 void Cartographer::PublishSubmapList() {
   carto::common::MutexLocker lock(&mutex_);
-  submap_list_publisher_->publish(map_builder_bridge_->GetSubmapList(node_handle_->now()));
+  submap_list_publisher_->publish(map_builder_bridge_->GetSubmapList(this->now()));
 }
 
 void Cartographer::AddExtrapolator(const int trajectory_id,
@@ -255,7 +257,7 @@ void Cartographer::PublishTrajectoryStates() {
     // frequency, and republishing it would be computationally wasteful.
     if (trajectory_state.local_slam_data->time !=
         extrapolator.GetLastPoseTime()) {
-      if (count_subscribers(kScanMatchedPointCloudTopic) > 0) {
+      if (this->count_subscribers(kScanMatchedPointCloudTopic) > 0) {
         // TODO(gaschler): Consider using other message without time
         // information.
         carto::sensor::TimedPointCloud point_cloud;
@@ -283,7 +285,7 @@ void Cartographer::PublishTrajectoryStates() {
     // time instead. Since tf knows how to interpolate, providing newer
     // information is better.
     const ::cartographer::common::Time now = std::max(
-        FromRos(node_handle_->now()), extrapolator.GetLastExtrapolatedTime());
+        FromRos(this->now()), extrapolator.GetLastExtrapolatedTime());
     stamped_transform.header.stamp = ToRos(now);
 
     const Rigid3d tracking_to_local = [&] {
@@ -330,24 +332,24 @@ void Cartographer::PublishTrajectoryStates() {
 }
 
 void Cartographer::PublishTrajectoryNodeList() {
-  if (count_subscribers(kTrajectoryNodeListTopic) > 0) {
+  if (this->count_subscribers(kTrajectoryNodeListTopic) > 0) {
     carto::common::MutexLocker lock(&mutex_);
     trajectory_node_list_publisher_->publish(
-        map_builder_bridge_->GetTrajectoryNodeList(node_handle_->now()));
+        map_builder_bridge_->GetTrajectoryNodeList(this->now()));
   }
 }
 
 void Cartographer::PublishLandmarkPosesList() {
-  if (count_subscribers(kLandmarkPosesListTopic) > 0) {
+  if (this->count_subscribers(kLandmarkPosesListTopic) > 0) {
     carto::common::MutexLocker lock(&mutex_);
-    constraint_list_publisher_->publish(map_builder_bridge_->GetLandmarkPosesList(node_handle_->now()));
+    constraint_list_publisher_->publish(map_builder_bridge_->GetLandmarkPosesList(this->now()));
   }
 }
 
 void Cartographer::PublishConstraintList() {
-  if (count_subscribers(kConstraintListTopic) > 0) {
+  if (this->count_subscribers(kConstraintListTopic) > 0) {
     carto::common::MutexLocker lock(&mutex_);
-    constraint_list_publisher_->publish(map_builder_bridge_->GetConstraintList(node_handle_->now()));
+    constraint_list_publisher_->publish(map_builder_bridge_->GetConstraintList(this->now()));
   }
 }
 
@@ -432,6 +434,7 @@ void Cartographer::LaunchSubscribers(const TrajectoryOptions& options,
              this, custom_qos_profile),
          topic});
   }
+
   for (const std::string& topic :
        ComputeRepeatedTopicNames(topics.multi_echo_laser_scan_topic,
                                  options.num_multi_echo_laser_scans)) {
@@ -441,6 +444,7 @@ void Cartographer::LaunchSubscribers(const TrajectoryOptions& options,
              node_handle_, this, custom_qos_profile),
          topic});
   }
+
   for (const std::string& topic : ComputeRepeatedTopicNames(
            topics.point_cloud2_topic, options.num_point_clouds)) {
     subscribers_[trajectory_id].push_back(
@@ -472,6 +476,7 @@ void Cartographer::LaunchSubscribers(const TrajectoryOptions& options,
                                                        node_handle_, this, custom_qos_profile),
          topic});
   }
+
   if (options.use_nav_sat) {
     std::string topic = topics.nav_sat_fix_topic;
     subscribers_[trajectory_id].push_back(
@@ -480,6 +485,7 @@ void Cartographer::LaunchSubscribers(const TrajectoryOptions& options,
                                                        node_handle_, this, custom_qos_profile),
          topic});
   }
+  
   if (options.use_landmarks) {
     std::string topic = topics.landmark_topic;
     subscribers_[trajectory_id].push_back(
