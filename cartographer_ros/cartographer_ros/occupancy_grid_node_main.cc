@@ -66,6 +66,15 @@ class OccupancyGridNode : public rclcpp::Node
 
     client_ = this->create_client<cartographer_ros_msgs::srv::SubmapQuery>(kSubmapQueryServiceName);
 
+    occupancy_grid_publisher_ =  this->create_publisher<::nav_msgs::msg::OccupancyGrid>(
+          kOccupancyGridTopic, custom_qos_profile);
+
+    occupancy_grid_publisher_timer_ = this->create_wall_timer(
+      std::chrono::milliseconds(int(publish_period_sec * 1000)),
+      [this]() {
+        DrawAndPublish();
+      });
+
     auto handleSubmapList =
       [this](const typename cartographer_ros_msgs::msg::SubmapList::SharedPtr msg) -> void
       {
@@ -76,8 +85,6 @@ class OccupancyGridNode : public rclcpp::Node
             RCLCPP_WARN(this->get_logger(), "topic(/submap_list) is not found");
             return;
           }
-
-          // RCLCPP_INFO(this->get_logger(), "Subscribe submap list"); 
 
           // Keep track of submap IDs that don't appear in the message anymore.
           std::set<SubmapId> submap_ids_to_delete;
@@ -96,26 +103,65 @@ class OccupancyGridNode : public rclcpp::Node
               continue;
             }
 
-            auto fetched_textures = FetchSubmapTextures(id);
-            if (fetched_textures == nullptr) {
-              continue;
+            while (!client_->wait_for_service(std::chrono::seconds(1))) {
+            if (!rclcpp::ok()) {
+              RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
+              return;
+              }
+              RCLCPP_INFO(this->get_logger(), "service not available, waiting again...");
             }
-            CHECK(!fetched_textures->textures.empty());
-            submap_slice.version = fetched_textures->version;
 
-            // We use the first texture only. By convention this is the highest
-            // resolution texture and that is the one we want to use to construct the
-            // map for ROS.
-            const auto fetched_texture = fetched_textures->textures.begin();
-            submap_slice.width = fetched_texture->width;
-            submap_slice.height = fetched_texture->height;
-            submap_slice.slice_pose = fetched_texture->slice_pose;
-            submap_slice.resolution = fetched_texture->resolution;
-            submap_slice.cairo_data.clear();
-            submap_slice.surface =  ::cartographer::io::DrawTexture(
-                fetched_texture->pixels.intensity, fetched_texture->pixels.alpha,
-                fetched_texture->width, fetched_texture->height,
-                &submap_slice.cairo_data);
+            auto srv_request = std::make_shared<cartographer_ros_msgs::srv::SubmapQuery::Request>();
+            srv_request->trajectory_id = id.trajectory_id;
+            srv_request->submap_index = id.submap_index;
+
+            using ServiceResponseFuture =
+              ::rclcpp::Client<cartographer_ros_msgs::srv::SubmapQuery>::SharedFuture;
+            auto response_received_callback = [this, &submap_slice](ServiceResponseFuture future) {
+              auto fetched_textures = cartographer_ros::FetchSubmapTextures(future.get());
+              // if (fetched_textures == nullptr) {
+              //   continue;
+              // }
+              CHECK(!fetched_textures->textures.empty());
+              submap_slice.version = fetched_textures->version;
+
+              // We use the first texture only. By convention this is the highest
+              // resolution texture and that is the one we want to use to construct the
+              // map for ROS.
+              const auto fetched_texture = fetched_textures->textures.begin();
+              submap_slice.width = fetched_texture->width;
+              submap_slice.height = fetched_texture->height;
+              submap_slice.slice_pose = fetched_texture->slice_pose;
+              submap_slice.resolution = fetched_texture->resolution;
+              submap_slice.cairo_data.clear();
+              submap_slice.surface =  ::cartographer::io::DrawTexture(
+                  fetched_texture->pixels.intensity, fetched_texture->pixels.alpha,
+                  fetched_texture->width, fetched_texture->height,
+                  &submap_slice.cairo_data);
+            };
+            
+            auto future_result = client_->async_send_request(srv_request, response_received_callback);
+
+            // auto fetched_textures = FetchSubmapTextures(id);
+            // if (fetched_textures == nullptr) {
+            //   continue;
+            // }
+            // CHECK(!fetched_textures->textures.empty());
+            // submap_slice.version = fetched_textures->version;
+
+            // // We use the first texture only. By convention this is the highest
+            // // resolution texture and that is the one we want to use to construct the
+            // // map for ROS.
+            // const auto fetched_texture = fetched_textures->textures.begin();
+            // submap_slice.width = fetched_texture->width;
+            // submap_slice.height = fetched_texture->height;
+            // submap_slice.slice_pose = fetched_texture->slice_pose;
+            // submap_slice.resolution = fetched_texture->resolution;
+            // submap_slice.cairo_data.clear();
+            // submap_slice.surface =  ::cartographer::io::DrawTexture(
+            //     fetched_texture->pixels.intensity, fetched_texture->pixels.alpha,
+            //     fetched_texture->width, fetched_texture->height,
+            //     &submap_slice.cairo_data);
           }
 
           // Delete all submaps that didn't appear in the message.
@@ -129,6 +175,23 @@ class OccupancyGridNode : public rclcpp::Node
 
     submap_list_subscriber_ = create_subscription<cartographer_ros_msgs::msg::SubmapList>(
       kSubmapListTopic, handleSubmapList, custom_qos_profile);
+  }
+
+  void DrawAndPublish(void) 
+  {
+    if (submap_slices_.empty() || last_frame_id_.empty()) 
+    {
+      RCLCPP_WARN(this->get_logger(), "submap_slices and last_frame_id is empty");  
+      return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "Publish Occupancy Grid");  
+    ::cartographer::common::MutexLocker locker(&mutex_);
+    auto painted_slices = PaintSubmapSlices(submap_slices_, resolution_);
+    std::unique_ptr<nav_msgs::msg::OccupancyGrid> msg_ptr = CreateOccupancyGridMsg(
+        painted_slices, resolution_, last_frame_id_, last_timestamp_);
+
+    occupancy_grid_publisher_->publish(*msg_ptr);
   }
 
   std::unique_ptr<::cartographer::io::SubmapTextures> FetchSubmapTextures(const ::cartographer::mapping::SubmapId& submap_id)
@@ -148,14 +211,10 @@ class OccupancyGridNode : public rclcpp::Node
     using ServiceResponseFuture =
       rclcpp::Client<cartographer_ros_msgs::srv::SubmapQuery>::SharedFuture;
     auto response_received_callback = [this](ServiceResponseFuture future) {
-        auto result = future.get();
-        RCLCPP_INFO(this->get_logger(), "Result of submap_version: %" PRId64, result->submap_version);
-      };
-    RCLCPP_INFO(this->get_logger(), "async_send");
+      auto result = future.get();
+    };
+    
     auto future_result = client_->async_send_request(srv_request, response_received_callback);
-
-    RCLCPP_INFO(this->get_logger(), "Result of submap_version: %" PRId64, future_result.get()->submap_version);
-    return cartographer_ros::FetchSubmapTextures(future_result.get());
   }
   // ~OccupancyGridNode() {}
 
