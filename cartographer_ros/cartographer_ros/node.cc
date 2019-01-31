@@ -86,8 +86,6 @@ Cartographer::Cartographer(
   : Node("cartographer_node"),
     node_options_(node_options)
 {
-  this->set_parameters({rclcpp::Parameter("use_sim_time", true)});
-
   node_handle_ = std::shared_ptr<::rclcpp::Node>(this, [](::rclcpp::Node *) {});
 
   constexpr double kTfBufferCacheTimeInSeconds = 10.;

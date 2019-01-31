@@ -56,8 +56,6 @@ class OccupancyGridNode : public rclcpp::Node
   : Node("cartographer_occupancy_grid_node"),
     resolution_(resolution)
   {
-    this->set_parameters({rclcpp::Parameter("use_sim_time", true)});
-
     rmw_qos_profile_t custom_qos_profile = rmw_qos_profile_default;
 
     custom_qos_profile.depth = 50;
