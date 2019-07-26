@@ -68,11 +68,10 @@ template <typename MessageType>
     const int trajectory_id, const std::string& topic,
     ::rclcpp::Node::SharedPtr node_handle, Cartographer* const node) {
   return node_handle->create_subscription<MessageType>(
-      topic,
-      rclcpp::QoS(10),
-      [node, handler, trajectory_id, topic](const typename MessageType::ConstSharedPtr msg) {
-            (node->*handler)(trajectory_id, topic, msg);
-      });
+    topic, rclcpp::SensorDataQoS(),
+    [node, handler, trajectory_id, topic](const typename MessageType::ConstSharedPtr msg) {
+      (node->*handler)(trajectory_id, topic, msg);
+    });
 }
 
 }  // namespace
