@@ -183,8 +183,24 @@ class OccupancyGridNode : public rclcpp::Node
 }  // namespace cartographer_ros
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  // Strip ROS specific arguments
+  std::vector<std::string> non_ros_args = rclcpp::remove_ros_arguments(argc, argv);
+
+  // Create argc and argv equivalents
+  int non_ros_argc = non_ros_args.size();
+  char ** non_ros_argv = new char*[non_ros_argc];
+  for (size_t i = 0; i < non_ros_args.size(); ++i) {
+    non_ros_argv[i] = new char[non_ros_args.at(i).size()];
+    strcpy(non_ros_argv[i], non_ros_args.at(i).c_str());
+  }
+
+  google::InitGoogleLogging(non_ros_argv[0]);
+  google::ParseCommandLineFlags(&non_ros_argc, &non_ros_argv, false);
+
+  for (size_t i = 0; i < non_ros_args.size(); ++i) {
+    delete [] non_ros_argv[i];
+  }
+  delete [] non_ros_argv;
 
   ::rclcpp::init(argc, argv);
 
