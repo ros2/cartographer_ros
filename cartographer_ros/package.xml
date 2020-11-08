@@ -67,11 +67,14 @@
   <build_depend>tf2_eigen</build_depend>
   <build_depend>urdfdom_headers</build_depend>
 
-  <depend>cartographer</depend>
-  <depend>cartographer_ros_msgs</depend>
+  <depend version_gte="1.0.0">cartographer</depend>
+  <depend version_gte="1.0.0">cartographer_ros_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>libgflags-dev</depend>
+  <depend>libgoogle-glog-dev</depend>
+  <depend>libpcl-all-dev</depend>
   <depend>lua5.2-dev</depend>
   <depend>nav_msgs</depend>
-  <depend>libpcl-all-dev</depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>tf2</depend>

@@ -104,7 +104,11 @@ set(ALL_SRCS
   "cartographer_ros/time_conversion.cc"
   "cartographer_ros/trajectory_options.cc"
   "cartographer_ros/submap.cc"
-  )
+
+  "cartographer_ros/metrics/family_factory.cc"
+  "cartographer_ros/metrics/internal/family.cc"
+  "cartographer_ros/metrics/internal/histogram.cc"
+)
 add_library(${PROJECT_NAME} ${ALL_SRCS})
 add_subdirectory("cartographer_ros")
 

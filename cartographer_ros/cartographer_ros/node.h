@@ -29,10 +29,13 @@
 #include "cartographer/mapping/map_builder_interface.h"
 #include "cartographer/mapping/pose_extrapolator.h"
 #include "cartographer_ros/map_builder_bridge.h"
+#include "cartographer_ros/metrics/family_factory.h"
 #include "cartographer_ros/node_constants.h"
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/trajectory_options.h"
 #include "cartographer_ros_msgs/srv/finish_trajectory.hpp"
+#include "cartographer_ros_msgs/srv/get_trajectory_states.hpp"
+#include "cartographer_ros_msgs/srv/read_metrics.hpp"
 #include "cartographer_ros_msgs/msg/sensor_topics.hpp"
 #include "cartographer_ros_msgs/srv/start_trajectory.hpp"
 #include "cartographer_ros_msgs/msg/status_response.h"
@@ -58,7 +61,8 @@ class Cartographer : public rclcpp::Node
 {
  public:
   Cartographer(const NodeOptions& node_options,
-       std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder);
+               std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder,
+               const bool collect_metrics);
   ~Cartographer();
 
   // Finishes all yet active trajectories.
@@ -141,6 +145,15 @@ class Cartographer : public rclcpp::Node
       const std::shared_ptr<rmw_request_id_t> request_header,
       const std::shared_ptr<cartographer_ros_msgs::srv::WriteState::Request> request,
        std::shared_ptr<cartographer_ros_msgs::srv::WriteState::Response> response);
+  bool HandleGetTrajectoryStates(
+      const std::shared_ptr<rmw_request_id_t> request_header,
+      const std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Request> request,
+       std::shared_ptr<cartographer_ros_msgs::srv::GetTrajectoryStates::Response> response);
+  bool HandleReadMetrics(
+      const std::shared_ptr<rmw_request_id_t> request_header,
+      const std::shared_ptr<cartographer_ros_msgs::srv::ReadMetrics::Request> request,
+       std::shared_ptr<cartographer_ros_msgs::srv::ReadMetrics::Response> response);
+
   // Returns the set of SensorIds expected for a trajectory.
   // 'SensorId::id' is the expected ROS topic name.
   std::set<::cartographer::mapping::TrajectoryBuilderInterface::SensorId>
@@ -155,7 +168,7 @@ class Cartographer : public rclcpp::Node
   void PublishSubmapList();
   void AddExtrapolator(int trajectory_id, const TrajectoryOptions& options);
   void AddSensorSamplers(int trajectory_id, const TrajectoryOptions& options);
-  void PublishTrajectoryStates();
+  void PublishLocalTrajectoryData();
   void PublishTrajectoryNodeList();
   void PublishLandmarkPosesList();
   void PublishConstraintList();
@@ -186,6 +199,8 @@ class Cartographer : public rclcpp::Node
   ::rclcpp::Service<cartographer_ros_msgs::srv::StartTrajectory>::SharedPtr start_trajectory_server_;
   ::rclcpp::Service<cartographer_ros_msgs::srv::FinishTrajectory>::SharedPtr finish_trajectory_server_;
   ::rclcpp::Service<cartographer_ros_msgs::srv::WriteState>::SharedPtr write_state_server_;
+  ::rclcpp::Service<cartographer_ros_msgs::srv::GetTrajectoryStates>::SharedPtr get_trajectory_states_server_;
+  ::rclcpp::Service<cartographer_ros_msgs::srv::ReadMetrics>::SharedPtr read_metrics_server_;
 
 //   std::vector<::rclcpp::ServiceBase::SharedPtr> service_servers_;
 
@@ -214,17 +229,17 @@ class Cartographer : public rclcpp::Node
   std::unordered_map<int, TrajectorySensorSamplers> sensor_samplers_;
   std::unordered_map<int, std::vector<Subscriber>> subscribers_;
   std::unordered_set<std::string> subscribed_topics_;
-  std::unordered_map<int, bool> is_active_trajectory_ GUARDED_BY(mutex_);
 
   // We have to keep the timer handles of ::rclcpp::TimerBase around, otherwise
   // they do not fire.
 //   std::vector<::rclcpp::TimerBase::SharedPtr> wall_timers_;
   ::rclcpp::TimerBase::SharedPtr submap_list_timer_;
-  ::rclcpp::TimerBase::SharedPtr trajectory_states_timer_;
+  ::rclcpp::TimerBase::SharedPtr local_trajectory_data_timer_;
   ::rclcpp::TimerBase::SharedPtr trajectory_node_list_timer_;
   ::rclcpp::TimerBase::SharedPtr landmark_pose_list_timer_;
   ::rclcpp::TimerBase::SharedPtr constrain_list_timer_;
 
+  std::unique_ptr<cartographer_ros::metrics::FamilyFactory> metrics_registry_;
 };
 
 }  // namespace cartographer_ros

@@ -37,10 +37,17 @@
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/timer.hpp>
 
 DEFINE_double(resolution, 0.05,
               "Resolution of a grid cell in the published occupancy grid.");
 DEFINE_double(publish_period_sec, 1.0, "OccupancyGrid publishing period.");
+DEFINE_bool(include_frozen_submaps, true,
+            "Include frozen submaps in the occupancy grid.");
+DEFINE_bool(include_unfrozen_submaps, true,
+            "Include unfrozen submaps in the occupancy grid.");
+DEFINE_string(occupancy_grid_topic, cartographer_ros::kOccupancyGridTopic,
+              "Name of the topic on which the occupancy grid is published.");
 
 namespace cartographer_ros {
 namespace {
@@ -59,13 +66,17 @@ class OccupancyGridNode : public rclcpp::Node
     client_ = this->create_client<cartographer_ros_msgs::srv::SubmapQuery>(kSubmapQueryServiceName);
 
     occupancy_grid_publisher_ = this->create_publisher<::nav_msgs::msg::OccupancyGrid>(
-        kOccupancyGridTopic, rclcpp::QoS(10).transient_local());
+      kOccupancyGridTopic, rclcpp::QoS(kLatestOnlyPublisherQueueSize).transient_local());
 
-    occupancy_grid_publisher_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(int(publish_period_sec * 1000)),
-      [this]() {
-        DrawAndPublish();
-      });
+    occupancy_grid_publisher_timer_ =
+      rclcpp::GenericTimer<rclcpp::VoidCallbackType>::make_shared(
+        this->get_clock(),
+        std::chrono::milliseconds(int(publish_period_sec * 1000)),
+        [this]() {
+          DrawAndPublish();
+        },
+        this->get_node_base_interface()->get_context());
+    this->get_node_timers_interface()->add_timer(occupancy_grid_publisher_timer_, nullptr);
 
     auto handleSubmapList =
       [this](const typename cartographer_ros_msgs::msg::SubmapList::SharedPtr msg) -> void
@@ -87,6 +98,10 @@ class OccupancyGridNode : public rclcpp::Node
           for (const auto& submap_msg : msg->submap) {
             const SubmapId id{submap_msg.trajectory_id, submap_msg.submap_index};
             submap_ids_to_delete.erase(id);
+            if ((submap_msg.is_frozen && !FLAGS_include_frozen_submaps) ||
+                (!submap_msg.is_frozen && !FLAGS_include_unfrozen_submaps)) {
+              continue;
+            }
             SubmapSlice& submap_slice = submap_slices_[id];
             submap_slice.pose = ToRigid3d(submap_msg.pose);
             submap_slice.metadata_version = submap_msg.submap_version;
@@ -145,7 +160,7 @@ class OccupancyGridNode : public rclcpp::Node
       };
 
     submap_list_subscriber_ = create_subscription<cartographer_ros_msgs::msg::SubmapList>(
-      kSubmapListTopic, rclcpp::QoS(10), handleSubmapList);
+      kSubmapListTopic, rclcpp::QoS(kLatestOnlyPublisherQueueSize), handleSubmapList);
   }
 
   void DrawAndPublish(void)
@@ -191,6 +206,9 @@ int main(int argc, char** argv) {
   google::AllowCommandLineReparsing();
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, false);
+
+  CHECK(FLAGS_include_frozen_submaps || FLAGS_include_unfrozen_submaps)
+      << "Ignoring both frozen and unfrozen submaps makes no sense.";
 
   auto node = std::make_shared<cartographer_ros::OccupancyGridNode>(FLAGS_resolution, FLAGS_publish_period_sec);
 

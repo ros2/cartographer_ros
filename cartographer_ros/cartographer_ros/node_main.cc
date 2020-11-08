@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "cartographer/common/make_unique.h"
 #include "cartographer/mapping/map_builder.h"
 #include "cartographer_ros/node.h"
 #include "cartographer_ros/node_options.h"
@@ -23,6 +24,9 @@
 #include <rclcpp/rclcpp.hpp>
 #include <tf2_ros/transform_listener.h>
 
+DEFINE_bool(collect_metrics, false,
+            "Activates the collection of runtime metrics. If activated, the "
+            "metrics can be accessed via a ROS service.");
 DEFINE_string(configuration_directory, "",
               "First directory in which configuration files are searched, "
               "second is always the Cartographer installation to allow "
@@ -53,10 +57,11 @@ void Run() {
       LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
   auto map_builder =
-      cartographer::common::make_unique<cartographer::mapping::MapBuilder>(
+      ::cartographer::common::make_unique<cartographer::mapping::MapBuilder>(
           node_options.map_builder_options);
 
-  auto node = std::make_shared<cartographer_ros::Cartographer>(node_options, std::move(map_builder));
+  auto node = std::make_shared<cartographer_ros::Cartographer>(
+      node_options, std::move(map_builder), FLAGS_collect_metrics);
 
   if (!FLAGS_load_state_filename.empty()) {
     node->LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);

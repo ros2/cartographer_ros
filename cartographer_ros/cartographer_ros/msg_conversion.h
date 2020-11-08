@@ -17,7 +17,6 @@
 #ifndef CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MSG_CONVERSION_H
 #define CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MSG_CONVERSION_H
 
-#include "cartographer/common/port.h"
 #include "cartographer/common/time.h"
 #include "cartographer/io/submap_painter.h"
 #include "cartographer/sensor/landmark_data.h"
