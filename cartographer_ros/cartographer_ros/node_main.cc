@@ -21,7 +21,6 @@
 #include "gflags/gflags.h"
 
 #include <rclcpp/rclcpp.hpp>
-#include <tf2_ros/transform_listener.h>
 
 DEFINE_string(configuration_directory, "",
               "First directory in which configuration files are searched, "
