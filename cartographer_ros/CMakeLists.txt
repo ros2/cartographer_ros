@@ -46,15 +46,11 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_msgs REQUIRED)
-# find_package(urdf REQUIRED)
 find_package(visualization_msgs REQUIRED)
-
-include(FindPkgConfig)
 
 find_package(LuaGoogle REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(Eigen3 REQUIRED)
-# find_package(Boost REQUIRED COMPONENTS system iostreams)
 find_package(urdfdom_headers REQUIRED)
 
 if(DEFINED urdfdom_headers_VERSION)
@@ -66,19 +62,6 @@ endif()
 include_directories(
   include
   "."
-  ${cartographer_INCLUDE_DIRS}
-  ${cartographer_ros_msgs_INCLUDE_DIRS}
-  ${geometry_msgs_INCLUDE_DIRS}
-  ${nav_msgs_INCLUDE_DIRS}
-  ${pcl_conversions_INCLUDE_DIRS}
-  ${rclcpp_INCLUDE_DIRS}
-  ${sensor_msgs_INCLUDE_DIRS}
-  ${std_msgs_INCLUDE_DIRS}
-  ${tf2_INCLUDE_DIRS}
-  ${tf2_msgs_INCLUDE_DIRS}
-  ${tf2_ros_INCLUDE_DIRS}
-  ${tf2_eigen_INCLUDE_DIRS}
-  ${visualization_msgs_INCLUDE_DIRS}
 )
 
 # # Override Catkin's GTest configuration to use GMock.
@@ -104,8 +87,22 @@ set(ALL_SRCS
   "cartographer_ros/time_conversion.cc"
   "cartographer_ros/trajectory_options.cc"
   "cartographer_ros/submap.cc"
-  )
+)
 add_library(${PROJECT_NAME} ${ALL_SRCS})
+ament_target_dependencies(${PROJECT_NAME} PUBLIC
+  cartographer_ros_msgs
+  geometry_msgs
+  nav_msgs
+  pcl_conversions
+  rclcpp
+  sensor_msgs
+  std_msgs
+  tf2
+  tf2_eigen
+  tf2_msgs
+  tf2_ros
+  visualization_msgs
+)
 add_subdirectory("cartographer_ros")
 
 target_link_libraries(${PROJECT_NAME} PUBLIC cartographer)
@@ -128,11 +125,6 @@ endforeach()
 # Eigen
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
   "${EIGEN3_INCLUDE_DIR}")
-
-# # Boost
-# target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
-#   "${Boost_INCLUDE_DIRS}")
-# target_link_libraries(${PROJECT_NAME} PUBLIC ${Boost_LIBRARIES})
 
 # YAML
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC ${YAMLCPP_INCLUDE_DIRS})
