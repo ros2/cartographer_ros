@@ -128,7 +128,7 @@ def extract_stats(inp):
   result['max_set_size_kbytes'] = int(parsed['max_set_size'])
 
   parsed = CONSTRAINT_STATS_PATTERN.extract_last_occurence(inp)
-  print parsed
+  print(parsed)
   result['constraints_count'] = int(parsed[0])
   result['constraints_score_min'] = float(parsed[1])
   result['constraints_score_max'] = float(parsed[2])
@@ -161,14 +161,14 @@ def create_job_selector(worker_id, num_workers):
 
 def run_cmd(cmd):
   """Runs command both printing its stdout output and returning it as string."""
-  print cmd
+  print(cmd)
   p = subprocess.Popen(
       cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   run_cmd.output = []
 
   def process(line):
     run_cmd.output.append(line)
-    print line.rstrip()
+    print(line.rstrip())
 
   while p.poll() is None:
     process(p.stdout.readline())
@@ -205,7 +205,7 @@ class Job(object):
 
   def run(self, ros_distro, run_id):
     """Runs the job with ROS distro 'ros_distro'."""
-    print 'running job {}'.format(self.id)
+    print('running job {}'.format(self.id))
 
     # Garbage collect any left-overs from previous runs.
     run_cmd('rm -rf /data/*')
@@ -282,7 +282,7 @@ class Worker(object):
         output = job.run(self.ros_distro, self.run_id)
         outputs[job.id] = output
       else:
-        print 'job {}: skip'.format(job.id)
+        print('job {}: skip'.format(job.id))
     return outputs
 
 
@@ -293,7 +293,7 @@ def publish_stats_to_big_query(stats_dict, now, head_sha1):
   table = dataset.table('metrics')
   rows_to_insert = []
   for job_identifier, job_info in stats_dict.iteritems():
-    print job_info
+    print(job_info)
     data = ('{}-{}-{}'.format(
         now.year, now.month,
         now.day), head_sha1, job_identifier, job_info['rosbag'],
@@ -316,10 +316,10 @@ def publish_stats_to_big_query(stats_dict, now, head_sha1):
   errors = bigquery_client.create_rows(
       table, rows_to_insert, selected_fields=SCHEMA)
   if not errors:
-    print 'Pushed {} row(s) into Cartographer:metrics'.format(
-        len(rows_to_insert))
+    print('Pushed {} row(s) into Cartographer:metrics'.format(
+        len(rows_to_insert)))
   else:
-    print 'Errors:'
+    print('Errors:')
     pprint(errors)
 
 
