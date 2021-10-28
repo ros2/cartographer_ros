@@ -87,6 +87,7 @@ set(ALL_SRCS
   "cartographer_ros/time_conversion.cc"
   "cartographer_ros/trajectory_options.cc"
   "cartographer_ros/submap.cc"
+  "cartographer_ros/ros_map.cc"
 )
 add_library(${PROJECT_NAME} ${ALL_SRCS})
 ament_target_dependencies(${PROJECT_NAME} PUBLIC

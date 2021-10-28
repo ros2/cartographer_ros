@@ -30,9 +30,15 @@ ament_target_dependencies(occupancy_grid_node
   rclcpp
 )
 
+add_executable(pbstream_to_ros_map_node
+  pbstream_to_ros_map_main.cc)
+target_include_directories(pbstream_to_ros_map_node SYSTEM PUBLIC ${LUA_INCLUDE_DIR})
+target_link_libraries(pbstream_to_ros_map_node ${PROJECT_NAME})
+
 install(TARGETS
   cartographer_node
   occupancy_grid_node
+  pbstream_to_ros_map_node
   DESTINATION lib/${PROJECT_NAME})
 
 # google_binary(cartographer_assets_writer
