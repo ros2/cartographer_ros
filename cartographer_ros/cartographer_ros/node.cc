@@ -41,7 +41,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <tf2_eigen/tf2_eigen.h>
+#include <tf2_eigen/tf2_eigen.hpp>
 #include "visualization_msgs/msg/marker_array.hpp"
 
 namespace cartographer_ros {
