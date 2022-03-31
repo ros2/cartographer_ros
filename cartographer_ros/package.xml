@@ -36,33 +36,34 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>git</build_depend>
   <build_depend>google-mock</build_depend>
-  <build_depend>protobuf-dev</build_depend>
   <build_depend>python3-sphinx</build_depend>
 
+  <depend>builtin_interfaces</depend>
   <depend>cartographer</depend>
   <depend>cartographer_ros_msgs</depend>
+  <depend>eigen</depend>
   <depend>geometry_msgs</depend>
+  <depend>libabsl-dev</depend>
   <depend>libgflags-dev</depend>
   <depend>libgoogle-glog-dev</depend>
   <depend>libpcl-all-dev</depend>
-  <depend>builtin_interfaces</depend>
-  <depend>rosidl_default_generators</depend>
   <depend>nav_msgs</depend>
   <depend>pcl_conversions</depend>
-  <depend>robot_state_publisher</depend>
-  <depend>rosbag2</depend>
-  <depend>rosbag2_transport</depend>
   <depend>rclcpp</depend>
-  <depend>launch</depend>
+  <depend>rosbag2_cpp</depend>
+  <depend>rosbag2_storage</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_eigen</depend>
+  <depend>tf2_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>urdf</depend>
   <depend>visualization_msgs</depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

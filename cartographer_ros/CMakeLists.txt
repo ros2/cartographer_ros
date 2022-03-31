@@ -28,32 +28,30 @@ endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+find_package(builtin_interfaces REQUIRED)
 find_package(cartographer REQUIRED)
 find_package(cartographer_ros_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(absl REQUIRED)
+find_package(PCL REQUIRED COMPONENTS common)
 find_package(nav_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rosbag2_cpp REQUIRED)
+find_package(rosbag2_storage REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
-find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_msgs REQUIRED)
-find_package(visualization_msgs REQUIRED)
-find_package(rosbag2_compression REQUIRED)
-find_package(rosbag2_cpp REQUIRED)
-find_package(rosbag2_storage REQUIRED)
-find_package(absl REQUIRED)
-find_package(Lua REQUIRED)
-find_package(PCL REQUIRED COMPONENTS common)
-find_package(Eigen3 REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(urdf REQUIRED)
 find_package(urdfdom_headers REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 include_directories(
   include
-  ${LUA_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
   ${urdfdom_headers_INCLUDE_DIRS}
 )
@@ -90,6 +88,7 @@ add_library(${PROJECT_NAME}
   )
 
 set(dependencies
+  builtin_interfaces
   cartographer
   cartographer_ros_msgs
   geometry_msgs
@@ -103,7 +102,6 @@ set(dependencies
   tf2_msgs
   tf2_ros
   visualization_msgs
-  rosbag2_compression
   rosbag2_cpp
   rosbag2_storage
   urdf

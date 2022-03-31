@@ -29,23 +29,22 @@ endif()
 
 set(CMAKE_AUTOMOC ON)
 
-find_package(Boost REQUIRED COMPONENTS system iostreams)
 find_package(cartographer REQUIRED)
 include("${CARTOGRAPHER_CMAKE_DIR}/functions.cmake")
 set(BUILD_SHARED_LIBS OFF)
 option(BUILD_GRPC "build features that require Cartographer gRPC support" false)
 google_initialize_cartographer_project()
 
-find_package(Eigen3 REQUIRED)
+find_package(Boost REQUIRED COMPONENTS iostreams)
 find_package(cartographer_ros REQUIRED)
 find_package(cartographer_ros_msgs REQUIRED)
-find_package(pcl_conversions REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(rviz2 REQUIRED)
-find_package(PCL REQUIRED COMPONENTS common)
-find_package(rviz_common REQUIRED)
+find_package(absl REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(pluginlib REQUIRED)
-find_package(rcutils REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rviz_common REQUIRED)
+find_package(rviz_ogre_vendor REQUIRED)
+find_package(rviz_rendering REQUIRED)
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
@@ -69,14 +68,13 @@ add_library(${PROJECT_NAME} SHARED
   )
 
 set(dependencies
-  rclcpp
   cartographer
   cartographer_ros
   cartographer_ros_msgs
-  rviz2
+  rclcpp
   rviz_common
-  pcl_conversions
-  rcutils
+  rviz_ogre_vendor
+  rviz_rendering
   )
 
 ament_target_dependencies(${PROJECT_NAME}
@@ -84,8 +82,6 @@ ament_target_dependencies(${PROJECT_NAME}
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-  ${PCL_INCLUDE_DIRS}
-  ${Qt5Widgets_INCLUDE_DIRS}
   ${OGRE_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
   ${Boost_INCLUDE_DIRS}
@@ -93,20 +89,11 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 target_link_libraries(${PROJECT_NAME}
   cartographer
-  ${PCL_LIBRARIES}
-  ${QT_LIBRARIES}
   ${EIGEN3_LIBRARIES}
   ${Boost_LIBRARIES}
   rviz_common::rviz_common
   )
 
-
-# Causes the visibility macros to use dllexport rather than dllimport,
-# which is appropriate when building the dll but not consuming it.
-target_compile_definitions(${PROJECT_NAME} PRIVATE "RVIZ_DEFAULT_PLUGINS_BUILDING_LIBRARY")
-
-# prevent pluginlib from using boost
-target_compile_definitions(${PROJECT_NAME} PUBLIC "PLUGINLIB__DISABLE_BOOST_FUNCTIONS")
 
 pluginlib_export_plugin_description_file(rviz_common rviz_plugin_description.xml)
 register_rviz_ogre_media_exports(DIRECTORIES "ogre_media/materials/glsl120" "ogre_media/materials/scripts")
