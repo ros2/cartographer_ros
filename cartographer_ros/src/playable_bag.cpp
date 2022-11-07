@@ -22,6 +22,7 @@
 #include "tf2_msgs/msg/tf_message.hpp"
 #include "rosbag2_storage/topic_metadata.hpp"
 #include "rosbag2_storage/bag_metadata.hpp"
+#include <filesystem>
 
 namespace cartographer_ros {
 
@@ -38,7 +39,12 @@ PlayableBag::PlayableBag(
       filtering_early_message_handler_(
           std::move(filtering_early_message_handler)) {
   LOG(WARNING) << "Opening bag: " << bag_filename;
-  bag_reader_->open(bag_filename);
+  if (std::filesystem::path(bag_filename).extension() == ".mcap") {
+    bag_reader_->open(rosbag2_storage::StorageOptions{bag_filename,"mcap"},
+                      rosbag2_cpp::ConverterOptions{"cdr", "cdr"});
+  } else {
+    bag_reader_->open(bag_filename);
+  }
   bag_metadata = bag_reader_->get_metadata();
   duration_in_seconds_ = bag_metadata.duration.count()/1e9;
   LOG(WARNING) << "duration_in_seconds_: " << duration_in_seconds_;
