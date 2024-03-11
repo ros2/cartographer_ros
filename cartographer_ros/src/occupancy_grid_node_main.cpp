@@ -37,6 +37,7 @@
 #include "gflags/gflags.h"
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/version.h>
 
 DEFINE_double(resolution, 0.05,
               "Resolution of a grid cell in the published occupancy grid.");
@@ -93,7 +94,11 @@ Node::Node(const double resolution, const double publish_period_sec)
   callback_group_executor_->add_callback_group(callback_group_, this->get_node_base_interface());
   client_ = this->create_client<cartographer_ros_msgs::srv::SubmapQuery>(
         kSubmapQueryServiceName,
+#if RCLCPP_VERSION_GTE(17, 0, 0)
+        rclcpp::ServicesQoS(),
+#else
         rmw_qos_profile_services_default,
+#endif
         callback_group_
         );
 

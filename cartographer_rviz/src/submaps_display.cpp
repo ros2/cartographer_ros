@@ -26,6 +26,7 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <pluginlib/class_list_macros.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/version.h>
 #include <rviz_common/display_context.hpp>
 #include <rviz_common/frame_manager_iface.hpp>
 #include <rviz_common/properties/bool_property.hpp>
@@ -67,7 +68,11 @@ SubmapsDisplay::SubmapsDisplay() : rclcpp::Node("submaps_display") {
   callback_group_executor_->add_callback_group(callback_group_, this->get_node_base_interface());
   client_ = this->create_client<::cartographer_ros_msgs::srv::SubmapQuery>(
         kDefaultSubmapQueryServiceName,
+#if RCLCPP_VERSION_GTE(17, 0, 0)
+        rclcpp::ServicesQoS(),
+#else
         rmw_qos_profile_services_default,
+#endif
         callback_group_
         );
   trajectories_category_ = new ::rviz_common::properties::Property(
@@ -112,7 +117,11 @@ void SubmapsDisplay::Reset() { reset(); }
 void SubmapsDisplay::CreateClient() {
   client_ = this->create_client<::cartographer_ros_msgs::srv::SubmapQuery>(
       submap_query_service_property_->getStdString(),
+#if RCLCPP_VERSION_GTE(17, 0, 0)
+      rclcpp::ServicesQoS(),
+#else
       rmw_qos_profile_services_default,
+#endif
       callback_group_
       );
 }
