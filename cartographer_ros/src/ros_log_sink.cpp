@@ -22,6 +22,7 @@
 #include <thread>
 
 #include "glog/log_severity.h"
+#include "glog/logging.h"
 
 namespace cartographer_ros {
 
@@ -45,8 +46,16 @@ void ScopedRosLogSink::send(const ::google::LogSeverity severity,
                             const size_t message_len) {
   (void) base_filename; // TODO: remove unused arg ?
 
+  // Google glog broke the ToString API, but has no way to tell what version it is using.
+  // To support both newer and older glog versions, use a nasty hack were we infer the
+  // version based on whether GOOGLE_GLOG_DLL_DECL is defined
+#if defined(GOOGLE_GLOG_DLL_DECL)
   const std::string message_string = ::google::LogSink::ToString(
       severity, GetBasename(filename), line, tm_time, message, message_len);
+#else
+  const std::string message_string = ::google::LogSink::ToString(
+      severity, GetBasename(filename), line, ::google::LogMessageTime(*tm_time), message, message_len);
+#endif
   switch (severity) {
     case ::google::GLOG_INFO:
       RCLCPP_INFO_STREAM(logger_, message_string);
