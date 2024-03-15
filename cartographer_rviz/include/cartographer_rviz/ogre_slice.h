@@ -25,7 +25,7 @@
 #include "OgreSceneManager.h"
 #include "OgreSceneNode.h"
 #include "OgreTexture.h"
-#include "OgreVector3.h"
+#include "Ogre.h"
 #include "cartographer/io/submap_painter.h"
 #include "cartographer/mapping/id.h"
 
