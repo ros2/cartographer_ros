@@ -134,6 +134,10 @@ add_executable(cartographer_rosbag_validate src/rosbag_validate_main.cpp)
 target_link_libraries(cartographer_rosbag_validate ${PROJECT_NAME})
 ament_target_dependencies(cartographer_rosbag_validate ${dependencies})
 
+if($ENV{ROS_DISTRO} MATCHES "humble" OR $ENV{ROS_DISTRO} MATCHES "iron")
+  target_compile_definitions(${PROJECT_NAME} PRIVATE PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME)
+  target_compile_definitions(cartographer_rosbag_validate PRIVATE PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME)
+endif()
 
 install(TARGETS
   ${PROJECT_NAME}

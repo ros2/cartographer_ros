@@ -53,7 +53,11 @@ PlayableBag::PlayableBag(
 
 rclcpp::Time PlayableBag::PeekMessageTime() const {
   CHECK(IsMessageAvailable());
+#ifdef PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME
   return rclcpp::Time(buffered_messages_.front().time_stamp);
+#else
+  return rclcpp::Time(buffered_messages_.front().recv_timestamp);
+#endif
 }
 
 std::tuple<rclcpp::Time, rclcpp::Time> PlayableBag::GetBeginEndTime() const {
@@ -68,9 +72,15 @@ rosbag2_storage::SerializedBagMessage PlayableBag::GetNextMessage(
   const rosbag2_storage::SerializedBagMessage msg = buffered_messages_.front();
   buffered_messages_.pop_front();
   AdvanceUntilMessageAvailable();
+#ifdef PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME
   double processed_seconds =
       (rclcpp::Time(msg.time_stamp) -
        rclcpp::Time(bag_metadata.starting_time.time_since_epoch().count())).seconds();
+#else
+  double processed_seconds =
+      (rclcpp::Time(msg.recv_timestamp) -
+       rclcpp::Time(bag_metadata.starting_time.time_since_epoch().count())).seconds();
+#endif
   if ((message_counter_ % 10000) == 0) {
     LOG(INFO) << "Processed " << processed_seconds << " of "
               << duration_in_seconds_ << " seconds of bag " << bag_filename_;
@@ -89,9 +99,15 @@ rosbag2_storage::SerializedBagMessage PlayableBag::GetNextMessage(
 }
 
 bool PlayableBag::IsMessageAvailable() const {
+#ifdef PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME
   return !buffered_messages_.empty() &&
          (buffered_messages_.front().time_stamp <
           buffered_messages_.back().time_stamp - buffer_delay_.nanoseconds());
+#else
+  return !buffered_messages_.empty() &&
+         (buffered_messages_.front().recv_timestamp <
+          buffered_messages_.back().recv_timestamp - buffer_delay_.nanoseconds());
+#endif
 }
 
 int PlayableBag::bag_id() const { return bag_id_; }
@@ -164,7 +180,11 @@ std::tuple<rosbag2_storage::SerializedBagMessage, int, std::string, bool> Playab
     bag_progress_pub_->publish(progress);
     bag_progress_time_map_[current_bag.bag_id()] = node_->now();
   }
+#ifdef PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME
   CHECK_EQ(msg.time_stamp, next_message_queue_.top().message_timestamp.nanoseconds());
+#else
+  CHECK_EQ(msg.recv_timestamp, next_message_queue_.top().message_timestamp.nanoseconds());
+#endif
   next_message_queue_.pop();
   if (current_bag.IsMessageAvailable()) {
     next_message_queue_.emplace(

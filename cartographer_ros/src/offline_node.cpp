@@ -321,10 +321,17 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory,
     const std::string topic_type = std::get<2>(next_msg_tuple);
     const bool is_last_message_in_bag = std::get<3>(next_msg_tuple);
 
+#ifdef PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME
     if (msg.time_stamp <
         (begin_time.nanoseconds() + rclcpp::Duration(FLAGS_skip_seconds, 0).nanoseconds())) {
       continue;
     }
+#else
+    if (msg.recv_timestamp <
+        (begin_time.nanoseconds() + rclcpp::Duration(FLAGS_skip_seconds, 0).nanoseconds())) {
+      continue;
+    }
+#endif
 
     int trajectory_id;
     // Lazily add trajectories only when the first message arrives in order
@@ -404,7 +411,11 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory,
                                      landmark_list_msg);
       }
     }
+#ifdef PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME
     clock.clock = rclcpp::Time(msg.time_stamp);
+#else
+    clock.clock = rclcpp::Time(msg.recv_timestamp);
+#endif
     clock_publisher->publish(clock);
     rclcpp::spin_some(cartographer_offline_node);
 
