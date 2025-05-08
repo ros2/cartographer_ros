@@ -77,7 +77,7 @@ set(dependencies
   rviz_rendering
   )
 
-ament_target_dependencies(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME} PUBLIC
   ${dependencies}
 )
 
