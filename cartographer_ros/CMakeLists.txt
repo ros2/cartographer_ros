@@ -102,37 +102,31 @@ set(dependencies
 )
 target_link_libraries(${PROJECT_NAME} PUBLIC
   ${dependencies}
+  cartographer
+  ${PCL_LIBRARIES}
 )
-target_link_libraries(${PROJECT_NAME} cartographer ${PCL_LIBRARIES})
 
 # Executables
 add_executable(cartographer_node src/node_main.cpp)
-target_link_libraries(cartographer_node ${PROJECT_NAME})
-target_link_libraries(cartographer_node PUBLIC ${dependencies})
+target_link_libraries(cartographer_node ${PROJECT_NAME} PUBLIC ${dependencies})
 
 add_executable(cartographer_occupancy_grid_node src/occupancy_grid_node_main.cpp)
-target_link_libraries(cartographer_occupancy_grid_node ${PROJECT_NAME})
-target_link_libraries(cartographer_occupancy_grid_node PUBLIC ${dependencies})
+target_link_libraries(cartographer_occupancy_grid_node ${PROJECT_NAME} PUBLIC ${dependencies})
 
 add_executable(cartographer_offline_node src/offline_node_main.cpp)
-target_link_libraries(cartographer_offline_node ${PROJECT_NAME})
-target_link_libraries(cartographer_offline_node PUBLIC ${dependencies})
+target_link_libraries(cartographer_offline_node ${PROJECT_NAME} PUBLIC ${dependencies})
 
 add_executable(cartographer_assets_writer src/assets_writer_main.cpp)
-target_link_libraries(cartographer_assets_writer ${PROJECT_NAME})
-target_link_libraries(cartographer_assets_writer PUBLIC ${dependencies})
+target_link_libraries(cartographer_assets_writer ${PROJECT_NAME} PUBLIC ${dependencies})
 
 add_executable(cartographer_pbstream_map_publisher src/pbstream_map_publisher_main.cpp)
-target_link_libraries(cartographer_pbstream_map_publisher ${PROJECT_NAME})
-target_link_libraries(cartographer_pbstream_map_publisher PUBLIC ${dependencies})
+target_link_libraries(cartographer_pbstream_map_publisher ${PROJECT_NAME} PUBLIC ${dependencies})
 
 add_executable(cartographer_pbstream_to_ros_map src/pbstream_to_ros_map_main.cpp)
-target_link_libraries(cartographer_pbstream_to_ros_map ${PROJECT_NAME})
-target_link_libraries(cartographer_pbstream_to_ros_map PUBLIC ${dependencies})
+target_link_libraries(cartographer_pbstream_to_ros_map ${PROJECT_NAME} PUBLIC ${dependencies})
 
 add_executable(cartographer_rosbag_validate src/rosbag_validate_main.cpp)
-target_link_libraries(cartographer_rosbag_validate ${PROJECT_NAME})
-target_link_libraries(cartographer_rosbag_validate PUBLIC ${dependencies})
+target_link_libraries(cartographer_rosbag_validate ${PROJECT_NAME} PUBLIC ${dependencies})
 
 if($ENV{ROS_DISTRO} MATCHES "humble" OR $ENV{ROS_DISTRO} MATCHES "iron")
   target_compile_definitions(${PROJECT_NAME} PRIVATE PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME)

@@ -77,10 +77,6 @@ set(dependencies
   rviz_rendering
   )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
-  ${dependencies}
-)
-
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${OGRE_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
@@ -92,6 +88,8 @@ target_link_libraries(${PROJECT_NAME}
   ${EIGEN3_LIBRARIES}
   ${Boost_LIBRARIES}
   rviz_common::rviz_common
+  PUBLIC
+  ${dependencies}
   )
 
 
