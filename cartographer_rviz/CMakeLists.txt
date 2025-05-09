@@ -77,8 +77,12 @@ set(dependencies
   rviz_rendering
   )
 
-ament_target_dependencies(${PROJECT_NAME}
-  ${dependencies}
+set(dependency_targets
+  ${cartographer_ros_msgs_TARGETS}
+  rclcpp::rclcpp
+  rviz_common::rviz_common
+  rviz_ogre_vendor::OgreMain
+  rviz_rendering::rviz_rendering
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
@@ -92,6 +96,7 @@ target_link_libraries(${PROJECT_NAME}
   ${EIGEN3_LIBRARIES}
   ${Boost_LIBRARIES}
   rviz_common::rviz_common
+  ${dependency_targets}
   )
 
 

@@ -100,39 +100,51 @@ set(dependencies
   urdf
   urdfdom
 )
-ament_target_dependencies(${PROJECT_NAME}
-  ${dependencies}
-  )
-target_link_libraries(${PROJECT_NAME} cartographer ${PCL_LIBRARIES})
+set(dependency_targets
+  ${builtin_interfaces_TARGETS}
+  ${cartographer_ros_msgs_TARGETS}
+  ${geometry_msgs_TARGETS}
+  ${nav_msgs_TARGETS}
+  ${sensor_msgs_TARGETS}
+  ${std_msgs_TARGETS}
+  ${tf2_msgs_TARGETS}
+  ${visualization_msgs_TARGETS}
+  rclcpp::rclcpp
+  rosbag2_cpp::rosbag2_cpp
+  rosbag2_storage::rosbag2_storage
+  sensor_msgs::sensor_msgs_library
+  tf2::tf2
+  tf2_eigen::tf2_eigen
+  tf2_ros::tf2_ros
+  urdf::urdf
+)
+target_link_libraries(${PROJECT_NAME} PUBLIC
+  ${dependency_targets}
+  cartographer
+  ${PCL_LIBRARIES}
+)
 
 # Executables
 add_executable(cartographer_node src/node_main.cpp)
-target_link_libraries(cartographer_node ${PROJECT_NAME})
-ament_target_dependencies(cartographer_node ${dependencies})
+target_link_libraries(cartographer_node ${PROJECT_NAME} ${dependency_targets})
 
 add_executable(cartographer_occupancy_grid_node src/occupancy_grid_node_main.cpp)
-target_link_libraries(cartographer_occupancy_grid_node ${PROJECT_NAME})
-ament_target_dependencies(cartographer_occupancy_grid_node ${dependencies})
+target_link_libraries(cartographer_occupancy_grid_node ${PROJECT_NAME} ${dependency_targets})
 
 add_executable(cartographer_offline_node src/offline_node_main.cpp)
-target_link_libraries(cartographer_offline_node ${PROJECT_NAME})
-ament_target_dependencies(cartographer_offline_node ${dependencies})
+target_link_libraries(cartographer_offline_node ${PROJECT_NAME} ${dependency_targets})
 
 add_executable(cartographer_assets_writer src/assets_writer_main.cpp)
-target_link_libraries(cartographer_assets_writer ${PROJECT_NAME})
-ament_target_dependencies(cartographer_assets_writer ${dependencies})
+target_link_libraries(cartographer_assets_writer ${PROJECT_NAME} ${dependency_targets})
 
 add_executable(cartographer_pbstream_map_publisher src/pbstream_map_publisher_main.cpp)
-target_link_libraries(cartographer_pbstream_map_publisher ${PROJECT_NAME})
-ament_target_dependencies(cartographer_pbstream_map_publisher ${dependencies})
+target_link_libraries(cartographer_pbstream_map_publisher ${PROJECT_NAME} ${dependency_targets})
 
 add_executable(cartographer_pbstream_to_ros_map src/pbstream_to_ros_map_main.cpp)
-target_link_libraries(cartographer_pbstream_to_ros_map ${PROJECT_NAME})
-ament_target_dependencies(cartographer_pbstream_to_ros_map ${dependencies})
+target_link_libraries(cartographer_pbstream_to_ros_map ${PROJECT_NAME} ${dependency_targets})
 
 add_executable(cartographer_rosbag_validate src/rosbag_validate_main.cpp)
-target_link_libraries(cartographer_rosbag_validate ${PROJECT_NAME})
-ament_target_dependencies(cartographer_rosbag_validate ${dependencies})
+target_link_libraries(cartographer_rosbag_validate ${PROJECT_NAME} ${dependency_targets})
 
 if($ENV{ROS_DISTRO} MATCHES "humble" OR $ENV{ROS_DISTRO} MATCHES "iron")
   target_compile_definitions(${PROJECT_NAME} PRIVATE PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME)
