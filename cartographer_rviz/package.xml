@@ -76,7 +76,6 @@
   <depend>cartographer_ros_msgs</depend>
   <depend>eigen</depend>
   <depend>libabsl-dev</depend>
-  <depend>libboost-iostreams-dev</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>rviz_common</depend>

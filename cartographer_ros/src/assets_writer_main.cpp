@@ -17,6 +17,7 @@
 #include "cartographer_ros/assets_writer.h"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+#include "rclcpp/rclcpp.hpp"
 #include <regex>
 #include <string>
 

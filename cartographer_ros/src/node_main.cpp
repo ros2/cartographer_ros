@@ -20,6 +20,7 @@
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/ros_log_sink.h"
 #include "gflags/gflags.h"
+#include "rclcpp/rclcpp.hpp"
 #include "tf2_ros/transform_listener.h"
 
 DEFINE_bool(collect_metrics, false,

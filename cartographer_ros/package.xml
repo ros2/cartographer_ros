@@ -81,6 +81,7 @@
   <depend>eigen</depend>
   <depend>geometry_msgs</depend>
   <depend>libabsl-dev</depend>
+  <depend>libcairo2-dev</depend>
   <depend>libgflags-dev</depend>
   <depend>libgoogle-glog-dev</depend>
   <depend>libpcl-all-dev</depend>

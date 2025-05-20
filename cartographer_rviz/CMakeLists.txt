@@ -35,10 +35,9 @@ set(BUILD_SHARED_LIBS OFF)
 option(BUILD_GRPC "build features that require Cartographer gRPC support" false)
 google_initialize_cartographer_project()
 
-find_package(Boost REQUIRED COMPONENTS iostreams)
+find_package(absl REQUIRED)
 find_package(cartographer_ros REQUIRED)
 find_package(cartographer_ros_msgs REQUIRED)
-find_package(absl REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -56,44 +55,29 @@ set(rviz_plugins_headers_to_moc
   include/cartographer_rviz/submaps_display.h
 )
 
-include_directories(
-  include
-  )
-
 add_library(${PROJECT_NAME} SHARED
   src/drawable_submap.cpp
   src/ogre_slice.cpp
   src/submaps_display.cpp
   ${rviz_plugins_headers_to_moc}
-  )
-
-set(dependencies
-  cartographer
-  cartographer_ros
-  cartographer_ros_msgs
-  rclcpp
-  rviz_common
-  rviz_ogre_vendor
-  rviz_rendering
-  )
-
-ament_target_dependencies(${PROJECT_NAME}
-  ${dependencies}
 )
-
 target_include_directories(${PROJECT_NAME} PUBLIC
-  ${OGRE_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
-  ${Boost_INCLUDE_DIRS}
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
 )
-
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME} PUBLIC
+  absl::synchronization
   cartographer
-  ${EIGEN3_LIBRARIES}
-  ${Boost_LIBRARIES}
+  cartographer_ros::cartographer_ros
+  Eigen3::Eigen
+  rclcpp::rclcpp
   rviz_common::rviz_common
-  )
-
+  rviz_rendering::rviz_rendering
+  tf2_ros::tf2_ros
+)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  pluginlib::pluginlib
+)
 
 pluginlib_export_plugin_description_file(rviz_common rviz_plugin_description.xml)
 register_rviz_ogre_media_exports(DIRECTORIES "ogre_media/materials/glsl120" "ogre_media/materials/scripts")
@@ -104,18 +88,26 @@ install(
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-  INCLUDES DESTINATION include
+  INCLUDES DESTINATION include/${PROJECT_NAME}
 )
 
 install(
   DIRECTORY include/
-  DESTINATION include/
+  DESTINATION include/${PROJECT_NAME}
 )
 
-ament_export_include_directories(include)
+ament_export_include_directories(include/${PROJECT_NAME})
+ament_export_libraries(${PROJECT_NAME})
 ament_export_targets(${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(
-  ${dependencies}
+  absl
+  cartographer
+  cartographer_ros
+  eigen
+  rclcpp
+  rviz_common
+  rviz_rendering
+  tf2_ros
 )
 
 ament_package()
