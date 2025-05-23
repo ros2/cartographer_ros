@@ -31,7 +31,11 @@
 #include "gflags/gflags.h"
 #include "rosgraph_msgs/msg/clock.hpp"
 #include "tf2_ros/static_transform_broadcaster.h"
+#ifdef USE_URDF_H_FILES
 #include "urdf/model.h"
+#else
+#include "urdf/model.hpp"
+#endif
 #include "rclcpp/exceptions.hpp"
 #include <regex>
 #include <string>

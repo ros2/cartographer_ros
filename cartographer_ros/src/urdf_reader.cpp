@@ -20,7 +20,12 @@
 #include <vector>
 
 #include "cartographer_ros/msg_conversion.h"
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#ifdef USE_URDF_H_FILES
 #include "urdf/model.h"
+#else
+#include "urdf/model.hpp"
+#endif
 
 namespace cartographer_ros {
 

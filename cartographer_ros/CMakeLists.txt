@@ -40,6 +40,7 @@ find_package(nav_msgs REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common)
 find_package(pcl_conversions REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(ros_environment REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 find_package(rosbag2_storage REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -98,6 +99,9 @@ if ("$ENV{ROS_DISTRO}" STRLESS "kilted")
   # but prior to it it is only available as the INCLUDE_DIRS.  So we have this
   # compatibility hack to deal with that difference.
   target_include_directories(${PROJECT_NAME} PRIVATE ${pcl_conversions_INCLUDE_DIRS})
+  # In Kilted, urdf/model.h was deprecated in favor of urdf/model.hpp.
+  # Deal with the difference here so we have no warnings.
+  target_compile_definitions(${PROJECT_NAME} PRIVATE "-DUSE_URDF_H_FILES")
 else()
   target_link_libraries(${PROJECT_NAME} PRIVATE pcl_conversions::pcl_conversions)
 endif()
@@ -221,6 +225,9 @@ target_include_directories(cartographer_rosbag_validate PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
 )
+if ("$ENV{ROS_DISTRO}" STRLESS "kilted")
+  target_compile_definitions(cartographer_rosbag_validate PRIVATE "-DUSE_URDF_H_FILES")
+endif()
 target_link_libraries(cartographer_rosbag_validate
   ${PROJECT_NAME}
   absl::memory
