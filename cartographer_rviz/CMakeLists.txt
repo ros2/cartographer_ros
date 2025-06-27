@@ -47,6 +47,8 @@ find_package(rviz_rendering REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(urdf REQUIRED)
+
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
@@ -78,6 +80,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   rviz_rendering::rviz_rendering
   tf2_ros::tf2_ros
   tf2_eigen::tf2_eigen
+  pcl_conversions::pcl_conversions
+  urdf::urdf
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
   pluginlib::pluginlib
