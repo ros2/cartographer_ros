@@ -80,8 +80,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   rviz_rendering::rviz_rendering
   tf2_ros::tf2_ros
   tf2_eigen::tf2_eigen
-  pcl_conversions::pcl_conversions
-  urdf::urdf
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
   pluginlib::pluginlib
