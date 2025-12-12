@@ -72,7 +72,6 @@ add_library(${PROJECT_NAME} SHARED
   src/node_constants.cpp
   src/node.cpp
   src/node_options.cpp
-  src/offline_node.cpp
   src/playable_bag.cpp
   src/ros_log_sink.cpp
   src/ros_map.cpp
@@ -164,17 +163,24 @@ target_link_libraries(cartographer_occupancy_grid_node PRIVATE
   rclcpp::rclcpp
 )
 
-add_executable(cartographer_offline_node src/offline_node_main.cpp)
+add_executable(cartographer_offline_node
+  src/offline_node_main.cpp
+  src/offline_node.cpp
+)
 target_include_directories(cartographer_offline_node PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
 )
+if ("$ENV{ROS_DISTRO}" STRLESS "kilted")
+  target_compile_definitions(cartographer_offline_node PRIVATE "-DUSE_URDF_H_FILES")
+endif()
 target_link_libraries(cartographer_offline_node PRIVATE
   ${PROJECT_NAME}
   cartographer
   gflags
   rclcpp::rclcpp
+  urdf::urdf
 )
 
 add_executable(cartographer_assets_writer src/assets_writer_main.cpp)
@@ -247,6 +253,7 @@ target_link_libraries(cartographer_rosbag_validate
 
 if($ENV{ROS_DISTRO} MATCHES "humble" OR $ENV{ROS_DISTRO} MATCHES "iron")
   target_compile_definitions(${PROJECT_NAME} PRIVATE PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME)
+  target_compile_definitions(cartographer_offline_node PRIVATE PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME)
   target_compile_definitions(cartographer_rosbag_validate PRIVATE PRE_JAZZY_SERIALIZED_BAG_MSG_FIELD_NAME)
 endif()
 
