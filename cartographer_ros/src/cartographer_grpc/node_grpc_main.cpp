@@ -20,7 +20,7 @@
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/ros_log_sink.h"
 #include "gflags/gflags.h"
-#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/transform_listener.hpp"
 
 DEFINE_bool(collect_metrics, false,
             "Activates the collection of runtime metrics. If activated, the "

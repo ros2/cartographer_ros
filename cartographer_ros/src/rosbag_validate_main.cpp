@@ -35,7 +35,7 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "tf2_msgs/msg/tf_message.hpp"
-#include "tf2_ros/buffer.h"
+#include "tf2_ros/buffer.hpp"
 #ifdef USE_URDF_H_FILES
 #include "urdf/model.h"
 #else

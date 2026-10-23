@@ -17,6 +17,7 @@
 #ifndef CARTOGRAPHER_ROS_METRICS_INTERNAL_HISTOGRAM_H
 #define CARTOGRAPHER_ROS_METRICS_INTERNAL_HISTOGRAM_H
 
+#include "absl/base/thread_annotations.h"
 #include <map>
 #include <vector>
 
@@ -50,8 +51,8 @@ class Histogram : public ::cartographer::metrics::Histogram {
   absl::Mutex mutex_;
   const std::map<std::string, std::string> labels_;
   const BucketBoundaries bucket_boundaries_;
-  std::vector<double> bucket_counts_ GUARDED_BY(mutex_);
-  double sum_ GUARDED_BY(mutex_);
+  std::vector<double> bucket_counts_ ABSL_GUARDED_BY(mutex_);
+  double sum_ ABSL_GUARDED_BY(mutex_);
 };
 
 }  // namespace metrics

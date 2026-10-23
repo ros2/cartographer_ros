@@ -55,7 +55,16 @@ publish_frame_projected_to_2d
   If enabled, the published pose will be restricted to a pure 2D pose (no roll,
   pitch, or z-offset). This prevents potentially unwanted out-of-plane poses in
   2D mode that can occur due to the pose extrapolation step (e.g. if the pose
-  shall be published as a 'base-footprint'-like frame)
+  shall be published as a 'base-footprint'-like frame). Projection is applied
+  after transforming from the tracking frame to the published frame, so an
+  elevated IMU does not introduce a z-offset in a published ground-level frame.
+
+projection_frame
+  Optional frame whose pose is projected when publish_frame_projected_to_2d is
+  enabled. Defaults to published_frame. Set to "base_footprint" to keep the
+  ground at z=0 even when publishing "odom" and the EKF places base_link at
+  odom z=0. The published frame's offset from this frame is preserved. TF from
+  projection_frame to tracking_frame must be available at the scan timestamp.
 
 use_odometry
   If enabled, subscribes to `nav_msgs/Odometry`_ on the topic "odom". Odometry

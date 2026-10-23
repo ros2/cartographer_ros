@@ -30,13 +30,14 @@
 #include "cartographer_ros/urdf_reader.h"
 #include "gflags/gflags.h"
 #include "rosgraph_msgs/msg/clock.hpp"
-#include "tf2_ros/static_transform_broadcaster.h"
+#include "tf2_ros/static_transform_broadcaster.hpp"
 #ifdef USE_URDF_H_FILES
 #include "urdf/model.h"
 #else
 #include "urdf/model.hpp"
 #endif
 #include "rclcpp/exceptions.hpp"
+#include "rclcpp/executors/single_threaded_executor.hpp"
 #include <regex>
 #include <string>
 
@@ -174,6 +175,8 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory,
 
   Node node(node_options, std::move(map_builder), tf_buffer, cartographer_offline_node,
             FLAGS_collect_metrics);
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(cartographer_offline_node);
   if (!FLAGS_load_state_filename.empty()) {
     node.LoadState(FLAGS_load_state_filename, FLAGS_load_frozen_state);
   }
@@ -182,7 +185,10 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory,
       cartographer_offline_node->create_publisher<tf2_msgs::msg::TFMessage>(
           kTfTopic, kLatestOnlyPublisherQueueSize);
 
-  ::tf2_ros::StaticTransformBroadcaster static_tf_broadcaster(cartographer_offline_node);
+  ::tf2_ros::StaticTransformBroadcaster static_tf_broadcaster(
+      tf2_ros::StaticTransformBroadcaster::RequiredInterfaces(
+          cartographer_offline_node->get_node_parameters_interface(),
+          cartographer_offline_node->get_node_topics_interface()));
 
   rclcpp::Publisher<rosgraph_msgs::msg::Clock>::SharedPtr clock_publisher =
       cartographer_offline_node->create_publisher<rosgraph_msgs::msg::Clock>(
@@ -421,7 +427,7 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory,
     clock.clock = rclcpp::Time(msg.recv_timestamp);
 #endif
     clock_publisher->publish(clock);
-    rclcpp::spin_some(cartographer_offline_node);
+    executor.spin_some();
 
     if (is_last_message_in_bag) {
       node.FinishTrajectory(trajectory_id);
@@ -470,7 +476,7 @@ void RunOfflineNode(const MapBuilderFactory& map_builder_factory,
   }
   if (FLAGS_keep_running) {
     LOG(INFO) << "Finished processing and waiting for shutdown.";
-    rclcpp::spin(cartographer_offline_node);
+    executor.spin();
   }
 }
 

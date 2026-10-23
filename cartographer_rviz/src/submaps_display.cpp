@@ -32,16 +32,16 @@
 #include <rviz_common/properties/bool_property.hpp>
 #include <rviz_common/properties/string_property.hpp>
 #include <rviz_common/message_filter_display.hpp>
-#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <ament_index_cpp/get_package_share_path.hpp>
 
 namespace cartographer_rviz {
 
 namespace {
 
 constexpr int kMaxOnGoingRequestsPerTrajectory = 6;
-constexpr char kMaterialsDirectory[] = "/ogre_media/materials";
-constexpr char kGlsl120Directory[] = "/glsl120";
-constexpr char kScriptsDirectory[] = "/scripts";
+constexpr char kMaterialsDirectory[] = "ogre_media/materials";
+constexpr char kGlsl120Directory[] = "glsl120";
+constexpr char kScriptsDirectory[] = "scripts";
 constexpr char kDefaultTrackingFrame[] = "base_link";
 constexpr char kDefaultSubmapQueryServiceName[] = "/submap_query";
 
@@ -91,14 +91,16 @@ SubmapsDisplay::SubmapsDisplay() : rclcpp::Node("submaps_display") {
                                 "Distance in meters in z-direction beyond "
                                 "which submaps will start to fade out.",
                                 this);
-  const std::string package_path = ament_index_cpp::get_package_share_directory("cartographer_rviz");
+  const auto materials_path =
+      ament_index_cpp::get_package_share_path("cartographer_rviz") /
+      kMaterialsDirectory;
   Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
-      package_path + kMaterialsDirectory, "FileSystem", "cartographer_rviz");
+      materials_path.string(), "FileSystem", "cartographer_rviz");
   Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
-      package_path + kMaterialsDirectory + kGlsl120Directory, "FileSystem",
+      (materials_path / kGlsl120Directory).string(), "FileSystem",
       "cartographer_rviz");
   Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
-      package_path + kMaterialsDirectory + kScriptsDirectory, "FileSystem",
+      (materials_path / kScriptsDirectory).string(), "FileSystem",
       "cartographer_rviz");
   Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
 
@@ -134,14 +136,14 @@ void SubmapsDisplay::onInitialize() {
 
 void SubmapsDisplay::reset() {
   MFDClass::reset();
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   client_.reset();
   trajectories_.clear();
   CreateClient();
 }
 
 void SubmapsDisplay::processMessage( const ::cartographer_ros_msgs::msg::SubmapList::ConstSharedPtr msg) {
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   map_frame_ = absl::make_unique<std::string>(msg->header.frame_id);
   // In case Cartographer node is relaunched, destroy trajectories from the
   // previous instance.
@@ -228,7 +230,7 @@ void SubmapsDisplay::processMessage( const ::cartographer_ros_msgs::msg::SubmapL
 }
 
 void SubmapsDisplay::update(const float , const float) {
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   // Schedule fetching of new submap textures.
   for (const auto& trajectory_by_id : trajectories_) {
     int num_ongoing_requests = 0;
@@ -278,7 +280,7 @@ void SubmapsDisplay::update(const float , const float) {
 }
 
 void SubmapsDisplay::AllEnabledToggled() {
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   const bool visible = visibility_all_enabled_->getBool();
   for (auto& trajectory_by_id : trajectories_) {
     trajectory_by_id.second->visibility->setBool(visible);
@@ -286,7 +288,7 @@ void SubmapsDisplay::AllEnabledToggled() {
 }
 
 void SubmapsDisplay::PoseMarkersEnabledToggled() {
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   const bool visible = pose_markers_all_enabled_->getBool();
   for (auto& trajectory_by_id : trajectories_) {
     trajectory_by_id.second->pose_markers_visibility->setBool(visible);
@@ -294,7 +296,7 @@ void SubmapsDisplay::PoseMarkersEnabledToggled() {
 }
 
 void SubmapsDisplay::ResolutionToggled() {
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   for (auto& trajectory_by_id : trajectories_) {
     for (auto& submap_entry : trajectory_by_id.second->submaps) {
       submap_entry.second->SetSliceVisibility(

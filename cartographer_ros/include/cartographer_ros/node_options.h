@@ -38,6 +38,11 @@ struct NodeOptions {
   bool publish_to_tf = true;
   bool publish_tracked_pose = false;
   bool use_pose_extrapolator = true;
+  // Fresh 2D maps only: wait for an ENU-referenced IMU heading before mapping.
+  bool initialize_map_from_imu = false;
+  double imu_heading_offset_rad = 0.;
+  double imu_heading_timeout_sec = 30.;
+  double imu_heading_max_age_sec = 1.;
 };
 
 NodeOptions CreateNodeOptions(

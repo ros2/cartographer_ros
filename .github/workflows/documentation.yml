@@ -1,0 +1,59 @@
+name: Documentation
+
+on:
+  push:
+    branches: [lyrical]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    branches: [lyrical]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/documentation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out documentation source
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+      - name: Install documentation dependencies
+        run: python -m pip install -r docs/requirements.txt
+      - name: Build Sphinx HTML
+        run: python -m sphinx -b html --keep-going docs/source _site
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    if: github.repository == 'slgrobotics/cartographer_ros' && github.event_name != 'pull_request' && github.ref == 'refs/heads/lyrical'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # Sphinx emits relative links and needs no Pages metadata/configuration.
+      # The site must already be enabled in repository Settings > Pages.
+      - name: Deploy documentation
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -17,6 +17,7 @@
 #ifndef CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MAP_BUILDER_BRIDGE_H
 #define CARTOGRAPHER_ROS_CARTOGRAPHER_ROS_MAP_BUILDER_BRIDGE_H
 
+#include "absl/base/thread_annotations.h"
 #include <memory>
 #include <set>
 #include <string>
@@ -61,6 +62,7 @@ class MapBuilderBridge {
     std::shared_ptr<const LocalSlamData> local_slam_data;
     cartographer::transform::Rigid3d local_to_map;
     std::unique_ptr<cartographer::transform::Rigid3d> published_to_tracking;
+    std::unique_ptr<cartographer::transform::Rigid3d> projection_to_tracking;
     TrajectoryOptions trajectory_options;
   };
 
@@ -95,7 +97,7 @@ class MapBuilderBridge {
   GetTrajectoryStates();
   cartographer_ros_msgs::msg::SubmapList GetSubmapList(rclcpp::Time node_time);
   std::unordered_map<int, LocalTrajectoryData> GetLocalTrajectoryData()
-      LOCKS_EXCLUDED(mutex_);
+      ABSL_LOCKS_EXCLUDED(mutex_);
   visualization_msgs::msg::MarkerArray GetTrajectoryNodeList(rclcpp::Time node_time);
   visualization_msgs::msg::MarkerArray GetLandmarkPosesList(rclcpp::Time node_time);
   visualization_msgs::msg::MarkerArray GetConstraintList(rclcpp::Time node_time);
@@ -107,13 +109,13 @@ class MapBuilderBridge {
                          const ::cartographer::common::Time time,
                          const ::cartographer::transform::Rigid3d local_pose,
                          ::cartographer::sensor::RangeData range_data_in_local)
-      LOCKS_EXCLUDED(mutex_);
+      ABSL_LOCKS_EXCLUDED(mutex_);
 
   absl::Mutex mutex_;
   const NodeOptions node_options_;
   std::unordered_map<int,
                      std::shared_ptr<const LocalTrajectoryData::LocalSlamData>>
-      local_slam_data_ GUARDED_BY(mutex_);
+      local_slam_data_ ABSL_GUARDED_BY(mutex_);
   std::unique_ptr<cartographer::mapping::MapBuilderInterface> map_builder_;
   tf2_ros::Buffer* const tf_buffer_;
 

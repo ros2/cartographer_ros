@@ -1,0 +1,2 @@
+# Keep GitHub's documentation build reproducible across runner updates.
+Sphinx==8.2.3

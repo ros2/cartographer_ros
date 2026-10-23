@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "cartographer/common/port.h"
-#include "tf2_ros/buffer.h"
+#include "tf2_ros/buffer.hpp"
 
 namespace cartographer_ros {
 

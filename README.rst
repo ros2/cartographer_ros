@@ -12,6 +12,13 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 
+
+See:
+
+* https://github.com/slgrobotics/cartographer_ros/blob/lyrical/README_Lyrical.md
+* https://github.com/slgrobotics/articubot_one/wiki/Jazzy-to-Lyrical-migration#cartographer-port
+* https://github.com/slgrobotics/cartographer
+
 ============================
 Cartographer ROS Integration
 ============================
@@ -31,9 +38,13 @@ configurations. This project provides Cartographer's ROS integration.
 Getting started
 ===============
 
+* Read this fork's documentation on `GitHub Pages`_ (after enabling Pages).
+* See `documentation publishing setup`_ for the one-time GitHub configuration.
 * Learn to use Cartographer with ROS at `our Read the Docs site`_.
 * You can ask a question by `creating an issue`_.
 
+.. _GitHub Pages: https://slgrobotics.github.io/cartographer_ros/
+.. _documentation publishing setup: docs/README.md
 .. _our Read the Docs site: https://google-cartographer-ros.readthedocs.io
 .. _creating an issue: https://github.com/cartographer-project/cartographer_ros/issues/new?labels=question
 

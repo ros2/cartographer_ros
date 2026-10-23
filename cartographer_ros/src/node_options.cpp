@@ -52,6 +52,18 @@ NodeOptions CreateNodeOptions(
     options.use_pose_extrapolator =
         lua_parameter_dictionary->GetBool("use_pose_extrapolator");
   }
+  if (lua_parameter_dictionary->HasKey("initialize_map_from_imu")) {
+    options.initialize_map_from_imu = lua_parameter_dictionary->GetBool("initialize_map_from_imu");
+  }
+  if (lua_parameter_dictionary->HasKey("imu_heading_offset_rad")) {
+    options.imu_heading_offset_rad = lua_parameter_dictionary->GetDouble("imu_heading_offset_rad");
+  }
+  if (lua_parameter_dictionary->HasKey("imu_heading_timeout_sec")) {
+    options.imu_heading_timeout_sec = lua_parameter_dictionary->GetDouble("imu_heading_timeout_sec");
+  }
+  if (lua_parameter_dictionary->HasKey("imu_heading_max_age_sec")) {
+    options.imu_heading_max_age_sec = lua_parameter_dictionary->GetDouble("imu_heading_max_age_sec");
+  }
   return options;
 }
 

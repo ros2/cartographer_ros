@@ -49,6 +49,9 @@ TrajectoryOptions CreateTrajectoryOptions(
       lua_parameter_dictionary->GetString("tracking_frame");
   options.published_frame =
       lua_parameter_dictionary->GetString("published_frame");
+  if (lua_parameter_dictionary->HasKey("projection_frame")) {
+    options.projection_frame = lua_parameter_dictionary->GetString("projection_frame");
+  }
   options.odom_frame = lua_parameter_dictionary->GetString("odom_frame");
   options.provide_odom_frame =
       lua_parameter_dictionary->GetBool("provide_odom_frame");

@@ -30,6 +30,8 @@ struct TrajectoryOptions {
       trajectory_builder_options;
   std::string tracking_frame;
   std::string published_frame;
+  // Optional frame to flatten before composing the published frame pose.
+  std::string projection_frame;
   std::string odom_frame;
   bool provide_odom_frame;
   bool use_odometry;

@@ -17,6 +17,7 @@
 #ifndef CARTOGRAPHER_RVIZ_SRC_SUBMAPS_DISPLAY_H_
 #define CARTOGRAPHER_RVIZ_SRC_SUBMAPS_DISPLAY_H_
 
+#include "absl/base/thread_annotations.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -29,8 +30,8 @@
 #include <rviz_common/message_filter_display.hpp>
 #include <rviz_common/properties/bool_property.hpp>
 #include <rviz_common/properties/float_property.hpp>
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/buffer.hpp"
+#include "tf2_ros/transform_listener.hpp"
 
 namespace cartographer_rviz {
 
@@ -97,7 +98,7 @@ class SubmapsDisplay
   std::unique_ptr<std::string> map_frame_;
   ::rviz_common::properties::StringProperty* tracking_frame_property_;
   Ogre::SceneNode* map_node_ = nullptr;  // Represents the map frame.
-  std::map<int, std::unique_ptr<Trajectory>> trajectories_ GUARDED_BY(mutex_);
+  std::map<int, std::unique_ptr<Trajectory>> trajectories_ ABSL_GUARDED_BY(mutex_);
   absl::Mutex mutex_;
   ::rviz_common::properties::BoolProperty* slice_high_resolution_enabled_;
   ::rviz_common::properties::BoolProperty* slice_low_resolution_enabled_;

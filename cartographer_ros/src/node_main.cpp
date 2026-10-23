@@ -14,14 +14,21 @@
  * limitations under the License.
  */
 
+#include <chrono>
+#include <cmath>
+
 #include "absl/memory/memory.h"
+#include "cartographer/transform/transform.h"
+#include "cartographer_ros/msg_conversion.h"
+#include "rclcpp/executors/single_threaded_executor.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #include "cartographer/mapping/map_builder.h"
 #include "cartographer_ros/node.h"
 #include "cartographer_ros/node_options.h"
 #include "cartographer_ros/ros_log_sink.h"
 #include "gflags/gflags.h"
 #include "rclcpp/rclcpp.hpp"
-#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/transform_listener.hpp"
 
 DEFINE_bool(collect_metrics, false,
             "Activates the collection of runtime metrics. If activated, the "
@@ -48,7 +55,85 @@ DEFINE_string(
 namespace cartographer_ros {
 namespace {
 
-void Run() {
+// No trajectory or laser subscription exists while this runs. The TF listener
+// has its own thread; this executor only receives candidate heading messages.
+bool InitializeMapHeading(const rclcpp::Node::SharedPtr& node,
+                          const tf2_ros::Buffer& tf_buffer,
+                          const NodeOptions& options,
+                          TrajectoryOptions* trajectory_options) {
+  if (!std::isfinite(options.imu_heading_offset_rad) ||
+      !std::isfinite(options.imu_heading_timeout_sec) ||
+      options.imu_heading_timeout_sec <= 0. ||
+      !std::isfinite(options.imu_heading_max_age_sec) ||
+      options.imu_heading_max_age_sec <= 0.) {
+    LOG(ERROR) << "IMU heading timeout/max age must be positive and finite; "
+                  "heading offset must be finite.";
+    return false;
+  }
+  sensor_msgs::msg::Imu::ConstSharedPtr latest;
+  auto subscription = node->create_subscription<sensor_msgs::msg::Imu>(
+      "imu", rclcpp::SensorDataQoS().keep_last(1),
+      [&latest](sensor_msgs::msg::Imu::ConstSharedPtr msg) { latest = msg; });
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
+  LOG(INFO) << "Waiting for initial ENU IMU heading on "
+            << subscription->get_topic_name() << "; mapping has not started.";
+  const auto deadline = std::chrono::steady_clock::now() +
+      std::chrono::duration<double>(options.imu_heading_timeout_sec);
+  std::string reason = "no IMU message received";
+  while (rclcpp::ok() && std::chrono::steady_clock::now() < deadline) {
+    executor.spin_once(std::chrono::milliseconds(100));
+    if (!latest) continue;
+    if (latest->header.frame_id.empty() ||
+        latest->orientation_covariance[0] == -1.) {
+      reason = "IMU orientation unavailable or frame_id empty";
+      continue;
+    }
+    const rclcpp::Time stamp(latest->header.stamp, node->get_clock()->get_clock_type());
+    if (stamp.nanoseconds() == 0 ||
+        std::abs((node->now() - stamp).seconds()) > options.imu_heading_max_age_sec) {
+      reason = "IMU timestamp is stale or clocks disagree";
+      continue;
+    }
+    const auto& q = latest->orientation;
+    Eigen::Quaterniond world_from_imu(q.w, q.x, q.y, q.z);
+    if (!world_from_imu.coeffs().allFinite() ||
+        std::abs(world_from_imu.norm() - 1.) > 0.01) {
+      reason = "IMU orientation quaternion is invalid";
+      continue;
+    }
+    world_from_imu.normalize();
+    try {
+      const auto tracking_from_imu = ToRigid3d(tf_buffer.lookupTransform(
+          trajectory_options->tracking_frame, latest->header.frame_id, stamp,
+          rclcpp::Duration::from_seconds(0.)));
+      const Eigen::Quaterniond world_from_tracking =
+          world_from_imu * tracking_from_imu.rotation().conjugate();
+      // Yaw is undefined when the tracking frame's x-axis is vertical.
+      const auto forward = world_from_tracking * Eigen::Vector3d::UnitX();
+      if (forward.head<2>().norm() < 1e-6) {
+        reason = "tracking frame has no horizontal heading";
+        continue;
+      }
+      const double yaw = std::atan2(forward.y(), forward.x()) +
+                         options.imu_heading_offset_rad;
+      const auto pose = cartographer::transform::Embed3D(
+          cartographer::transform::Rigid2d::Rotation(yaw));
+      *trajectory_options->trajectory_builder_options.mutable_initial_map_pose() =
+          cartographer::transform::ToProto(pose);
+      LOG(INFO) << "Initial map heading: " << yaw
+                << " rad; starting the first trajectory at this heading.";
+      return true;
+    } catch (const tf2::TransformException& error) {
+      reason = error.what();
+    }
+  }
+  LOG(ERROR) << "Initial IMU heading not established; no trajectory started: "
+             << reason;
+  return false;
+}
+
+bool Run() {
   rclcpp::Node::SharedPtr cartographer_node = rclcpp::Node::make_shared("cartographer_node");
   constexpr double kTfBufferCacheTimeInSeconds = 10.;
 
@@ -65,6 +150,22 @@ void Run() {
   TrajectoryOptions trajectory_options;
   std::tie(node_options, trajectory_options) =
       LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
+
+  if (node_options.initialize_map_from_imu) {
+    if (!FLAGS_load_state_filename.empty() ||
+        !FLAGS_start_trajectory_with_default_topics ||
+        !node_options.map_builder_options.use_trajectory_builder_2d() ||
+        trajectory_options.trajectory_builder_options.has_initial_trajectory_pose() ||
+        trajectory_options.trajectory_builder_options.has_initial_map_pose()) {
+      LOG(ERROR) << "initialize_map_from_imu requires automatic startup of a "
+                    "fresh 2D map, without a saved state or another initial pose.";
+      return false;
+    }
+    if (!InitializeMapHeading(cartographer_node, *tf_buffer, node_options,
+                              &trajectory_options)) {
+      return false;
+    }
+  }
 
   auto map_builder =
     cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
@@ -88,6 +189,7 @@ void Run() {
     node->SerializeState(FLAGS_save_state_filename,
                         true /* include_unfinished_submaps */);
   }
+  return true;
 }
 
 }  // namespace
@@ -107,6 +209,7 @@ int main(int argc, char** argv) {
       << "-configuration_basename is missing.";
 
   cartographer_ros::ScopedRosLogSink ros_log_sink;
-  cartographer_ros::Run();
+  const bool success = cartographer_ros::Run();
   ::rclcpp::shutdown();
+  return success ? 0 : 1;
 }

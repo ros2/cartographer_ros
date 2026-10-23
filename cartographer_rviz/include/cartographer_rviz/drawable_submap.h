@@ -17,6 +17,7 @@
 #ifndef CARTOGRAPHER_RVIZ_SRC_DRAWABLE_SUBMAP_H_
 #define CARTOGRAPHER_RVIZ_SRC_DRAWABLE_SUBMAP_H_
 
+#include "absl/base/thread_annotations.h"
 #include <future>
 #include <memory>
 #include <dlfcn.h>
@@ -108,16 +109,16 @@ class DrawableSubmap : public QObject{
   Ogre::SceneNode* const submap_node_;
   Ogre::SceneNode* const submap_id_text_node_;
   std::vector<std::unique_ptr<OgreSlice>> ogre_slices_;
-  ::cartographer::transform::Rigid3d pose_ GUARDED_BY(mutex_);
+  ::cartographer::transform::Rigid3d pose_ ABSL_GUARDED_BY(mutex_);
   ::rviz_rendering::Axes pose_axes_;
   bool pose_axes_visible_;
   ::rviz_rendering::MovableText submap_id_text_;
-  std::chrono::milliseconds last_query_timestamp_ GUARDED_BY(mutex_);
-  bool query_in_progress_ GUARDED_BY(mutex_) = false;
-  int metadata_version_ GUARDED_BY(mutex_) = -1;
+  std::chrono::milliseconds last_query_timestamp_ ABSL_GUARDED_BY(mutex_);
+  bool query_in_progress_ ABSL_GUARDED_BY(mutex_) = false;
+  int metadata_version_ ABSL_GUARDED_BY(mutex_) = -1;
   std::future<void> rpc_request_future_;
   std::unique_ptr<::cartographer::io::SubmapTextures> submap_textures_
-      GUARDED_BY(mutex_);
+      ABSL_GUARDED_BY(mutex_);
   float current_alpha_ = 0.f;
   std::unique_ptr<::rviz_common::properties::BoolProperty> visibility_;
 };

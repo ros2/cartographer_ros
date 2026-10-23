@@ -100,7 +100,7 @@ void DrawableSubmap::Update(
     const ::std_msgs::msg::Header& header,
     const ::cartographer_ros_msgs::msg::SubmapEntry& metadata) {
   (void) header; // TODO: remove unused arg ?
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   metadata_version_ = metadata.submap_version;
   pose_ = ::cartographer_ros::ToRigid3d(metadata.pose);
   submap_node_->setPosition(ToOgre(pose_.translation()));
@@ -119,7 +119,7 @@ void DrawableSubmap::Update(
 bool DrawableSubmap::MaybeFetchTexture(
     rclcpp::Client<cartographer_ros_msgs::srv::SubmapQuery>::SharedPtr const client,
     rclcpp::executors::SingleThreadedExecutor::SharedPtr callback_group_executor) {
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   // Received metadata version can also be lower if we restarted Cartographer.
   const bool newer_version_available =
       submap_textures_ == nullptr ||
@@ -138,7 +138,7 @@ bool DrawableSubmap::MaybeFetchTexture(
   rpc_request_future_ = std::async(std::launch::async, [this, client, callback_group_executor]() {
     std::unique_ptr<::cartographer::io::SubmapTextures> submap_textures =
         ::cartographer_ros::FetchSubmapTextures(id_, client, callback_group_executor, std::chrono::milliseconds(10000));
-    absl::MutexLock locker(&mutex_);
+    absl::MutexLock locker(mutex_);
     query_in_progress_ = false;
     if (submap_textures != nullptr) {
       // We emit a signal to update in the right thread, and pass via the
@@ -152,7 +152,7 @@ bool DrawableSubmap::MaybeFetchTexture(
 }
 
 bool DrawableSubmap::QueryInProgress() {
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   return query_in_progress_;
 }
 
@@ -183,7 +183,7 @@ void DrawableSubmap::SetSliceVisibility(size_t slice_index, bool visible) {
 }
 
 void DrawableSubmap::UpdateSceneNode() {
-  absl::MutexLock locker(&mutex_);
+  absl::MutexLock locker(mutex_);
   for (size_t slice_index = 0; slice_index < ogre_slices_.size() &&
                                slice_index < submap_textures_->textures.size();
        ++slice_index) {

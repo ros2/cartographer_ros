@@ -26,7 +26,7 @@
 #include <rosbag2_cpp/readers/sequential_reader.hpp>
 #include <rosbag2_cpp/writer.hpp>
 #include <rosbag2_cpp/writers/sequential_writer.hpp>
-#include "tf2_ros/buffer.h"
+#include "tf2_ros/buffer.hpp"
 
 namespace cartographer_ros {
 
